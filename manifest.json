@@ -1,0 +1,14 @@
+{
+  "display_name": "织忆",
+  "loading_order": 999,
+  "requires": [],
+  "optional": [],
+  "js": "dist/index.js",
+  "css": "",
+  "author": "Shirmy",
+  "version": "0.1.0",
+  "description": "织忆（WeaveMemory）—— SillyTavern 长期记忆、人物状态与剧情脉络管理插件。",
+  "generate_interceptor": "weavememory_generation_interceptor",
+  "auto_update": true,
+  "homePage": "https://github.com/Shirmy/ST-WeaveMemory"
+}
