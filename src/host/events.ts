@@ -1,6 +1,7 @@
 import { backend } from '../api/backend-client';
 import { currentChatId, getContext } from './context';
 import { getSettings } from '../settings/store';
+import { getCurrentBranchId, resetBranchState, setCurrentBranch } from './branch-state';
 
 function selectedSwipeId(message: any): number | null {
   return Number.isSafeInteger(message?.swipe_id) ? message.swipe_id : null;
@@ -50,12 +51,41 @@ function reconcileCurrentChat(): Promise<void> {
     const chatId = currentChatId(context);
     if (!chatId) return;
     try {
-      await backend.reconcileChat({ chatId, floors: currentAiFloors() });
+      const branchId = getCurrentBranchId(chatId);
+      const result = await backend.reconcileChat({
+        chatId,
+        ...(branchId ? { branchId } : {}),
+        floors: currentAiFloors()
+      });
+      setCurrentBranch(result.branch);
     } catch (error) {
       console.warn('[WeaveMemory] chat reconcile failed:', error);
     }
   });
   return reconcileChain;
+}
+
+export async function createBranchFromCurrentChat(forkFloorId: string, sourceBranchId?: string) {
+  const context = getContext();
+  const chatId = currentChatId(context);
+  const currentBranchId = getCurrentBranchId(chatId);
+  resetBranchState(chatId);
+  const result = await backend.createBranch({
+    chatId,
+    ...(sourceBranchId ?? currentBranchId ? { sourceBranchId: sourceBranchId ?? currentBranchId! } : {}),
+    forkFloorId
+  });
+  setCurrentBranch(result.branch);
+  return result;
+}
+
+export async function activateCurrentChatBranch(branchId: string) {
+  const context = getContext();
+  const chatId = currentChatId(context);
+  resetBranchState(chatId);
+  const result = await backend.activateBranch(chatId, branchId);
+  setCurrentBranch(result.branch);
+  return result;
 }
 
 export function bindHostEvents(): void {
@@ -69,6 +99,7 @@ export function bindHostEvents(): void {
     const event = types[key];
     if (event) eventSource.on(event, () => {
       console.debug(`[WeaveMemory] host mutation: ${key}`);
+      if (key === 'CHAT_CHANGED') resetBranchState(currentChatId(getContext()));
       void reconcileCurrentChat();
     });
   }
