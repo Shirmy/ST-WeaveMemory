@@ -8,6 +8,11 @@ export function currentChatId(context = getContext()): string {
   return String(context?.chatId ?? context?.chat_id ?? '');
 }
 
+export function currentChatMetadata(context = getContext()): Record<string, unknown> {
+  const metadata = context?.chatMetadata ?? context?.chat_metadata;
+  return metadata && typeof metadata === 'object' ? metadata as Record<string, unknown> : {};
+}
+
 export function latestUser(context = getContext()): { index: number | null; text: string } {
   const chat = Array.isArray(context?.chat) ? context.chat : [];
   for (let i = chat.length - 1; i >= 0; i -= 1) {

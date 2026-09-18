@@ -1,5 +1,5 @@
 import { backend } from '../api/backend-client';
-import { currentChatId, getContext } from './context';
+import { currentChatId, currentChatMetadata, getContext } from './context';
 import { getSettings } from '../settings/store';
 import { getCurrentBranchId, resetBranchState, setCurrentBranch } from './branch-state';
 
@@ -10,13 +10,23 @@ function selectedSwipeId(message: any): number | null {
 async function finalizeLatestAiFloor(): Promise<void> {
   if (!getSettings().enabled) return;
   const context = getContext();
+  const chatId = currentChatId(context);
+  if (!chatId) return;
+  try {
+    await ensureHostBranchBinding(context, chatId);
+  } catch (error) {
+    console.warn('[WeaveMemory] host branch binding failed:', error);
+    return;
+  }
+  const branchId = getCurrentBranchId(chatId);
   const chat = Array.isArray(context?.chat) ? context.chat : [];
   for (let i = chat.length - 1; i >= 0; i -= 1) {
     const message = chat[i];
     if (message?.is_user === false && message?.is_system !== true) {
       try {
         await backend.finalizeFloor({
-          chatId: currentChatId(context),
+          chatId,
+          ...(branchId ? { branchId } : {}),
           messageIndex: i,
           swipeId: selectedSwipeId(message),
           content: String(message?.mes ?? '')
@@ -51,13 +61,14 @@ function reconcileCurrentChat(): Promise<void> {
     const chatId = currentChatId(context);
     if (!chatId) return;
     try {
+      await ensureHostBranchBinding(context, chatId);
       const branchId = getCurrentBranchId(chatId);
       const result = await backend.reconcileChat({
         chatId,
         ...(branchId ? { branchId } : {}),
         floors: currentAiFloors()
       });
-      setCurrentBranch(result.branch);
+      setCurrentBranch(chatId, result.branch);
     } catch (error) {
       console.warn('[WeaveMemory] chat reconcile failed:', error);
     }
@@ -75,7 +86,7 @@ export async function createBranchFromCurrentChat(forkFloorId: string, sourceBra
     ...(sourceBranchId ?? currentBranchId ? { sourceBranchId: sourceBranchId ?? currentBranchId! } : {}),
     forkFloorId
   });
-  setCurrentBranch(result.branch);
+  setCurrentBranch(chatId, result.branch);
   return result;
 }
 
@@ -84,8 +95,21 @@ export async function activateCurrentChatBranch(branchId: string) {
   const chatId = currentChatId(context);
   resetBranchState(chatId);
   const result = await backend.activateBranch(chatId, branchId);
-  setCurrentBranch(result.branch);
+  setCurrentBranch(chatId, result.branch);
   return result;
+}
+
+async function ensureHostBranchBinding(context: any, chatId: string): Promise<void> {
+  const metadata = currentChatMetadata(context);
+  const mainChat = typeof metadata.main_chat === 'string' && metadata.main_chat && metadata.main_chat !== chatId
+    ? metadata.main_chat : null;
+  const floors = currentAiFloors();
+  const result = await backend.bindHostChat({
+    chatId,
+    ...(mainChat ? { mainChatId: mainChat } : {}),
+    ...(mainChat && floors.length ? { forkFloor: floors[floors.length - 1] } : {})
+  });
+  setCurrentBranch(chatId, result.branch);
 }
 
 export function bindHostEvents(): void {

@@ -1,4 +1,4 @@
-import type { BranchResponse, ChatReconcileRequest, ChatReconcileResponse, CreateBranchRequest, FloorFinalizeRequest, GenerationPrepareRequest, GenerationPrepareResponse, HealthResponse } from '../types';
+import type { BranchResponse, ChatReconcileRequest, ChatReconcileResponse, CreateBranchRequest, FloorFinalizeRequest, GenerationPrepareRequest, GenerationPrepareResponse, HealthResponse, HostChatBindingRequest } from '../types';
 
 const BASE = '/api/plugins/weavememory';
 
@@ -28,5 +28,8 @@ export const backend = {
   }),
   activateBranch: (chatId: string, branchId: string) => request<BranchResponse>('/branch/activate', {
     method: 'POST', body: JSON.stringify({ chatId, branchId })
+  }),
+  bindHostChat: (payload: HostChatBindingRequest) => request<BranchResponse>('/host-chat/bind', {
+    method: 'POST', body: JSON.stringify(payload)
   })
 };

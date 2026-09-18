@@ -29,6 +29,7 @@ export type GenerationPrepareResponse = {
 
 export type FloorFinalizeRequest = {
   chatId: string;
+  branchId?: string;
   messageIndex: number;
   swipeId: number | null;
   content: string;
@@ -69,6 +70,12 @@ export type CreateBranchRequest = {
   chatId: string;
   sourceBranchId?: string;
   forkFloorId: string;
+};
+
+export type HostChatBindingRequest = {
+  chatId: string;
+  mainChatId?: string | null;
+  forkFloor?: ReconcileFloor | null;
 };
 
 export type BranchResponse = {
