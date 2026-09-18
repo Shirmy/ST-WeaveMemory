@@ -42,6 +42,7 @@ export type ReconcileFloor = {
 
 export type ChatReconcileRequest = {
   chatId: string;
+  branchId?: string;
   floors: ReconcileFloor[];
 };
 
@@ -52,4 +53,24 @@ export type ChatReconcileResponse = {
   reusedFloorIds: string[];
   createdFloorIds: string[];
   staleFloorIds: string[];
+};
+
+export type BranchRecord = {
+  branchId: string;
+  chatId: string;
+  parentBranchId: string | null;
+  forkFloorId: string | null;
+  active: boolean;
+  createdAt: string;
+};
+
+export type CreateBranchRequest = {
+  chatId: string;
+  sourceBranchId?: string;
+  forkFloorId?: string | null;
+};
+
+export type BranchResponse = {
+  branch: BranchRecord;
+  activeFloorIds: string[];
 };

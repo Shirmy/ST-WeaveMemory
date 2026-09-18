@@ -1,4 +1,4 @@
-import type { ChatReconcileRequest, ChatReconcileResponse, FloorFinalizeRequest, GenerationPrepareRequest, GenerationPrepareResponse, HealthResponse } from '../types';
+import type { BranchResponse, ChatReconcileRequest, ChatReconcileResponse, CreateBranchRequest, FloorFinalizeRequest, GenerationPrepareRequest, GenerationPrepareResponse, HealthResponse } from '../types';
 
 const BASE = '/api/plugins/weavememory';
 
@@ -22,5 +22,11 @@ export const backend = {
   }),
   reconcileChat: (payload: ChatReconcileRequest) => request<ChatReconcileResponse>('/chat/reconcile', {
     method: 'POST', body: JSON.stringify(payload)
+  }),
+  createBranch: (payload: CreateBranchRequest) => request<BranchResponse>('/branch/create', {
+    method: 'POST', body: JSON.stringify(payload)
+  }),
+  activateBranch: (chatId: string, branchId: string) => request<BranchResponse>('/branch/activate', {
+    method: 'POST', body: JSON.stringify({ chatId, branchId })
   })
 };
