@@ -33,3 +33,23 @@ export type FloorFinalizeRequest = {
   swipeId: number | null;
   content: string;
 };
+
+export type ReconcileFloor = {
+  messageIndex: number;
+  swipeId: number | null;
+  content: string;
+};
+
+export type ChatReconcileRequest = {
+  chatId: string;
+  floors: ReconcileFloor[];
+};
+
+export type ChatReconcileResponse = {
+  chatId: string;
+  branchId: string;
+  activeFloorIds: string[];
+  reusedFloorIds: string[];
+  createdFloorIds: string[];
+  staleFloorIds: string[];
+};

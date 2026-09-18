@@ -23,9 +23,39 @@ async function finalizeLatestAiFloor(): Promise<void> {
       } catch (error) {
         console.warn('[WeaveMemory] floor finalize failed:', error);
       }
+      await reconcileCurrentChat();
       return;
     }
   }
+}
+
+function currentAiFloors(): Array<{ messageIndex: number; swipeId: number | null; content: string }> {
+  const context = getContext();
+  const chat = Array.isArray(context?.chat) ? context.chat : [];
+  return chat.flatMap((message: any, messageIndex: number) => {
+    if (message?.is_user !== false || message?.is_system === true) return [];
+    const swipeId = selectedSwipeId(message);
+    const swipes = Array.isArray(message?.swipes) ? message.swipes : [];
+    const content = typeof swipes[swipeId ?? 0] === 'string' ? swipes[swipeId ?? 0] : String(message?.mes ?? '');
+    return content ? [{ messageIndex, swipeId, content }] : [];
+  });
+}
+
+let reconcileChain = Promise.resolve();
+
+function reconcileCurrentChat(): Promise<void> {
+  reconcileChain = reconcileChain.then(async () => {
+    if (!getSettings().enabled) return;
+    const context = getContext();
+    const chatId = currentChatId(context);
+    if (!chatId) return;
+    try {
+      await backend.reconcileChat({ chatId, floors: currentAiFloors() });
+    } catch (error) {
+      console.warn('[WeaveMemory] chat reconcile failed:', error);
+    }
+  });
+  return reconcileChain;
 }
 
 export function bindHostEvents(): void {
@@ -37,6 +67,9 @@ export function bindHostEvents(): void {
   if (types.GENERATION_ENDED) eventSource.on(types.GENERATION_ENDED, () => void finalizeLatestAiFloor());
   for (const key of ['MESSAGE_EDITED', 'MESSAGE_DELETED', 'MESSAGE_SWIPED', 'MESSAGE_SWIPE_DELETED', 'CHAT_CHANGED']) {
     const event = types[key];
-    if (event) eventSource.on(event, () => console.debug(`[WeaveMemory] host mutation: ${key}`));
+    if (event) eventSource.on(event, () => {
+      console.debug(`[WeaveMemory] host mutation: ${key}`);
+      void reconcileCurrentChat();
+    });
   }
 }

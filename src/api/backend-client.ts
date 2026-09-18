@@ -1,4 +1,4 @@
-import type { FloorFinalizeRequest, GenerationPrepareRequest, GenerationPrepareResponse, HealthResponse } from '../types';
+import type { ChatReconcileRequest, ChatReconcileResponse, FloorFinalizeRequest, GenerationPrepareRequest, GenerationPrepareResponse, HealthResponse } from '../types';
 
 const BASE = '/api/plugins/weavememory';
 
@@ -18,6 +18,9 @@ export const backend = {
     method: 'POST', body: JSON.stringify(payload)
   }),
   finalizeFloor: (payload: FloorFinalizeRequest) => request<{ accepted: boolean; floorKey: string }>('/floor/finalize', {
+    method: 'POST', body: JSON.stringify(payload)
+  }),
+  reconcileChat: (payload: ChatReconcileRequest) => request<ChatReconcileResponse>('/chat/reconcile', {
     method: 'POST', body: JSON.stringify(payload)
   })
 };
