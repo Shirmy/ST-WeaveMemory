@@ -24,11 +24,24 @@ export async function generationInterceptor(_coreChat: unknown, contextSize: num
       latestUserText: user.text
     });
 
-    if (!result.ready) throw new Error(result.reason || 'WeaveMemory generation gate rejected this generation');
+    if (!result.ready) {
+      clearMemoryPrompts();
+      const message = result.reason === 'STATE_SYNC_PENDING_TIMEOUT'
+        ? '上一 AI 楼的状态仍在同步，织忆已阻止本次生成，请稍后重试。'
+        : '上一 AI 楼的状态同步失败，织忆已阻止本次生成。请检查状态任务后重建。';
+      notifyGenerationBlocked(message);
+      throw new Error(result.reason || 'WeaveMemory generation gate rejected this generation');
+    }
     applyMemoryPrompts(result.longMemory || '', result.currentState || '');
   } catch (error) {
     clearMemoryPrompts();
     if (settings.backendRequired) throw error;
     console.warn('[WeaveMemory] prepare degraded:', error);
   }
+}
+
+function notifyGenerationBlocked(message: string): void {
+  const host = globalThis as typeof globalThis & { toastr?: { error?: (text: string, title?: string) => void } };
+  if (typeof host.toastr?.error === 'function') host.toastr.error(message, '织忆');
+  else console.error(`[WeaveMemory] ${message}`);
 }

@@ -24,6 +24,7 @@ export type GenerationPrepareResponse = {
     memoryCount: number;
     memoryTokens: number;
     stateTokens: number;
+    stateNodeId?: string;
   };
 };
 
