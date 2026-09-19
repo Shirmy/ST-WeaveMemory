@@ -3,6 +3,8 @@ import { currentChatId, getContext, latestUser } from './context';
 import { characterCardId, previousAssistantIndex, readMvuExternalState } from './external-state';
 import { applyMemoryPrompts, clearMemoryPrompts } from '../injection/prompts';
 import { getSettings } from '../settings/store';
+import { generationFailureMessage } from './generation-reason';
+export { generationFailureMessage } from './generation-reason';
 
 export async function generationInterceptor(_coreChat: unknown, contextSize: number, _abort: unknown, rawType?: unknown): Promise<void> {
   const settings = getSettings();
@@ -34,9 +36,7 @@ export async function generationInterceptor(_coreChat: unknown, contextSize: num
 
     if (!result.ready) {
       clearMemoryPrompts();
-      const message = result.reason === 'STATE_SYNC_PENDING_TIMEOUT'
-        ? '上一 AI 楼的状态仍在同步，织忆已阻止本次生成，请稍后重试。'
-        : '上一 AI 楼的状态同步失败，织忆已阻止本次生成。请检查状态任务后重建。';
+      const message = generationFailureMessage(result.reason);
       notifyGenerationBlocked(message);
       throw new Error(result.reason || 'WeaveMemory generation gate rejected this generation');
     }
@@ -47,6 +47,7 @@ export async function generationInterceptor(_coreChat: unknown, contextSize: num
     console.warn('[WeaveMemory] prepare degraded:', error);
   }
 }
+
 
 function notifyGenerationBlocked(message: string): void {
   const host = globalThis as typeof globalThis & { toastr?: { error?: (text: string, title?: string) => void } };

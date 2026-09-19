@@ -33,6 +33,13 @@ export type GenerationPrepareResponse = {
     memoryTokens: number;
     stateTokens: number;
     stateNodeId?: string;
+    memoryTokenLimit?: number;
+    recallCandidateCount?: number;
+    fixedRecentCount?: number;
+    packedFixedRecentCount?: number;
+    packedHighRelevanceCount?: number;
+    skippedByTokenBudget?: number;
+    skippedByCount?: number;
     externalSource?: string | null;
     mvuDetected?: boolean;
     sourceMessageIndex?: number | null;
