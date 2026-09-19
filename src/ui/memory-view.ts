@@ -1,5 +1,6 @@
 import { backend } from '../api/backend-client';
 import type { LongMemoryRecord, RecallDebugResponse } from '../types';
+import { escapeHtml as esc } from './text';
 import { showToast } from './toast';
 
 export class MemoryView {
@@ -9,6 +10,10 @@ export class MemoryView {
   private includeStale: boolean = false;
   private searchQuery: string = '';
   private filterCharacter: string = '';
+  private filterPlotline = '';
+  private filterDate = '';
+  private filterStart = '';
+  private filterEnd = '';
   private isTestingRecall: boolean = false;
   private recallResult: RecallDebugResponse | null = null;
 
@@ -21,13 +26,13 @@ export class MemoryView {
   }
 
   async refresh(): Promise<void> {
-    if (!this.chatId) return;
+    if (!this.chatId) { this.memories = []; this.recallResult = null; this.render(); return; }
     try {
       const res = await backend.listMemories(this.chatId, this.branchId, this.includeStale);
       this.memories = res.memories || [];
       this.render();
-    } catch (err: any) {
-      showToast(err.message || '获取长期记忆失败', 'error');
+    } catch (err) {
+      showToast((err instanceof Error ? err.message : String(err)) || '获取长期记忆失败', 'error');
     }
   }
 
@@ -43,6 +48,10 @@ export class MemoryView {
       if (this.filterCharacter && !m.characterIds?.includes(this.filterCharacter)) {
         return false;
       }
+      if (this.filterPlotline && !m.plotlineIds.includes(this.filterPlotline)) return false;
+      if (this.filterDate && !m.narrativeTime?.includes(this.filterDate)) return false;
+      if (this.filterStart && m.endFloor < Number(this.filterStart)) return false;
+      if (this.filterEnd && m.startFloor > Number(this.filterEnd)) return false;
       return true;
     });
 
@@ -51,10 +60,10 @@ export class MemoryView {
       <div class="wm-card" style="padding:12px; gap:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:260px;">
-            <input type="text" class="wm-input" id="wm-mem-search" value="${this.searchQuery}" placeholder="搜索记忆摘要或标签..." style="flex:1;" />
+            <input type="text" class="wm-input" id="wm-mem-search" value="${esc(this.searchQuery)}" placeholder="搜索记忆摘要或标签..." style="flex:1;" />
             <select class="wm-select" id="wm-mem-filter-char" style="width:130px;">
               <option value="">全部人物</option>
-              ${characters.map(c => `<option value="${c}" ${this.filterCharacter === c ? 'selected' : ''}>${c}</option>`).join('')}
+              ${characters.map(c => `<option value="${esc(c)}" ${this.filterCharacter === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
             </select>
           </div>
           <div style="display:flex; align-items:center; gap:10px;">
@@ -67,6 +76,12 @@ export class MemoryView {
         </div>
       </div>
 
+      <div class="wm-card">
+        <label>剧情线<input class="wm-input" id="wm-filter-plotline" value="${esc(this.filterPlotline)}" placeholder="剧情线 ID" /></label>
+        <label>剧情日期<input class="wm-input" id="wm-filter-date" value="${esc(this.filterDate)}" placeholder="日期或叙事时间" /></label>
+        <label>起始楼<input type="number" id="wm-filter-start" value="${esc(this.filterStart)}" /></label>
+        <label>结束楼<input type="number" id="wm-filter-end" value="${esc(this.filterEnd)}" /></label>
+      </div>
       <!-- Recall Debugger Section -->
       <div class="wm-card">
         <div class="wm-card-header">
@@ -95,30 +110,32 @@ export class MemoryView {
               <div class="wm-card-header">
                 <div style="display:flex; align-items:center; gap:8px;">
                   <span class="wm-status-badge synced" style="font-size:11px;">#${m.startFloor} ~ #${m.endFloor} 楼</span>
-                  ${m.narrativeTime ? `<span style="font-size:12px; color:var(--wm-accent);"><i class="fa-solid fa-calendar-day"></i> ${m.narrativeTime}</span>` : ''}
-                  ${m.title ? `<span style="font-weight:600; font-size:14px;">${m.title}</span>` : ''}
+                  ${m.narrativeTime ? `<span style="font-size:12px; color:var(--wm-accent);"><i class="fa-solid fa-calendar-day"></i> ${esc(m.narrativeTime)}</span>` : ''}
+                  ${m.title ? `<span style="font-weight:600; font-size:14px;">${esc(m.title)}</span>` : ''}
                   ${isStale ? '<span class="wm-status-badge failed" style="font-size:10px;">已禁用</span>' : ''}
                 </div>
                 <div class="wm-drawer-actions">
                   <span title="BM25索引状态" style="font-size:11px; color:${m.bm25Indexed ? '#4ade80' : 'var(--wm-text-muted)'};">
-                    <i class="fa-solid fa-font"></i> BM25
+                    <i class="fa-solid fa-font"></i> BM25 ${m.bm25Indexed ? '已索引' : '未索引'}
                   </span>
                   <span title="向量索引状态" style="font-size:11px; color:${m.embeddingIndexed ? '#38bdf8' : 'var(--wm-text-muted)'};">
-                    <i class="fa-solid fa-draw-polygon"></i> 向量
+                    <i class="fa-solid fa-draw-polygon"></i> 向量 ${m.embeddingIndexed ? '已索引' : '未索引'}
                   </span>
-                  <button class="wm-btn wm-btn-secondary wm-toggle-mem-stale-btn" data-id="${m.memoryId}" data-stale="${isStale ? '1' : '0'}" style="padding:4px 8px; font-size:12px;">
+                  <button class="wm-btn wm-btn-secondary wm-toggle-mem-stale-btn" data-id="${esc(m.memoryId)}" data-stale="${isStale ? '1' : '0'}" style="padding:4px 8px; font-size:12px;">
                     ${isStale ? '<i class="fa-solid fa-eye"></i> 启用' : '<i class="fa-solid fa-eye-slash"></i> 禁用'}
                   </button>
                 </div>
               </div>
 
-              <div style="font-size:13px; line-height:1.6; color:var(--wm-text); white-space:pre-wrap;">${m.summary}</div>
+              <details><summary>查看来源范围</summary><pre>${esc(JSON.stringify({ startFloor: m.startFloor, endFloor: m.endFloor, sourceFloorIds: m.sourceFloorIds, batchId: m.batchId, sliceId: m.sliceId, narrativeTime: m.narrativeTime, characterIds: m.characterIds, plotlineIds: m.plotlineIds }, null, 2))}</pre></details>
+              <button class="wm-btn wm-resummarize" data-batch="${esc(m.batchId)}">重新总结此批次</button>
+              <div style="font-size:13px; line-height:1.6; color:var(--wm-text); white-space:pre-wrap;">${esc(m.summary)}</div>
 
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:11px; color:var(--wm-text-muted); border-top:1px solid rgba(255,255,255,0.05); padding-top:8px;">
                 <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                  ${(m.characterIds || []).map(c => `<span style="background:rgba(99,102,241,0.15); color:#a5b4fc; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-user"></i> ${c}</span>`).join('')}
-                  ${(m.plotlineIds || []).map(p => `<span style="background:rgba(56,189,248,0.15); color:#7dd3fc; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-timeline"></i> ${p}</span>`).join('')}
-                  ${(m.tags || []).map(t => `<span style="background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px;">#${t}</span>`).join('')}
+                  ${(m.characterIds || []).map(c => `<span style="background:rgba(99,102,241,0.15); color:#a5b4fc; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-user"></i> ${esc(c)}</span>`).join('')}
+                  ${(m.plotlineIds || []).map(p => `<span style="background:rgba(56,189,248,0.15); color:#7dd3fc; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-timeline"></i> ${esc(p)}</span>`).join('')}
+                  ${(m.tags || []).map(t => `<span style="background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px;">#${esc(t)}</span>`).join('')}
                 </div>
                 <div>来源楼层: [${m.sourceFloorIds?.length || 0} 个]</div>
               </div>
@@ -132,42 +149,37 @@ export class MemoryView {
   }
 
   private renderRecallResult(): string {
-    if (!this.recallResult) return '';
-    const { candidates, final, pack, timings } = this.recallResult;
-
+    const result = this.recallResult;
+    if (!result) return '';
+    const stage = (title: string, items: Array<{ memory: LongMemoryRecord }>) => `<div class="wm-card"><h4>${title} (${items.length})</h4>${items.map(item => `<p>${esc(item.memory.title ?? item.memory.memoryId)}: ${esc(item.memory.summary)}</p>`).join('')}</div>`;
     return `
-      <div style="display:flex; flex-direction:column; gap:12px; margin-top:12px; background:var(--wm-bg-alt); padding:14px; border-radius:var(--wm-radius); border:1px solid var(--wm-border);">
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--wm-text-muted);">
-          <span>耗时分解: 总计 ${timings.totalMs}ms (BM25: ${timings.bm25Ms}ms | 向量: ${timings.embeddingMs}ms | RRF: ${timings.rrfMs}ms | Rerank: ${timings.rerankMs}ms)</span>
-          <span style="color:var(--wm-accent); font-weight:600;">最终召回: ${final.length} 条 (占用 ${pack.tokens} Tokens)</span>
-        </div>
-
-        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; font-size:11px;">
-          <div class="wm-card" style="padding:8px; background:var(--wm-bg);">
-            <div style="font-weight:600; color:#4ade80;">BM25 候选 (${candidates.bm25?.length || 0})</div>
-            ${(candidates.bm25 || []).slice(0, 3).map(c => `<div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.memoryId.slice(0, 8)}... (${c.score.toFixed(2)})</div>`).join('')}
-          </div>
-          <div class="wm-card" style="padding:8px; background:var(--wm-bg);">
-            <div style="font-weight:600; color:#38bdf8;">向量 候选 (${candidates.embedding?.length || 0})</div>
-            ${(candidates.embedding || []).slice(0, 3).map(c => `<div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.memoryId.slice(0, 8)}... (${c.score.toFixed(3)})</div>`).join('')}
-          </div>
-          <div class="wm-card" style="padding:8px; background:var(--wm-bg);">
-            <div style="font-weight:600; color:#fbbf24;">RRF 融合 (${candidates.rrf?.length || 0})</div>
-            ${(candidates.rrf || []).slice(0, 3).map(c => `<div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.memoryId.slice(0, 8)}... (${c.score.toFixed(4)})</div>`).join('')}
-          </div>
-          <div class="wm-card" style="padding:8px; background:var(--wm-bg);">
-            <div style="font-weight:600; color:#f43f5e;">Rerank 重排 (${candidates.rerank?.length || 0})</div>
-            ${(candidates.rerank || []).slice(0, 3).map(c => `<div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.memoryId.slice(0, 8)}... (${c.score.toFixed(3)})</div>`).join('')}
-          </div>
-        </div>
-
-        <div style="font-size:12px; font-weight:600;">注入文本预览 (Packed Text):</div>
-        <textarea class="wm-textarea" rows="4" readonly style="font-family:monospace; font-size:11px;">${pack.text}</textarea>
-      </div>
-    `;
+      <div class="wm-card">召回各阶段耗时（ms）<pre>${esc(JSON.stringify(result.timings, null, 2))}</pre></div>
+      ${stage('BM25', result.bm25)}
+      ${stage('向量召回', result.embedding)}
+      ${stage('RRF', result.rrf)}
+      <div class="wm-card">重排状态：${esc(result.rerank.status)}</div>
+      ${stage('重排', result.rerank.candidates)}
+      ${stage('最终 Recall', result.final)}
+      <div class="wm-card">Token Packer: ${result.pack.estimatedTokens} / ${result.pack.tokenLimit}
+        <p>fixed_recent: ${result.pack.diagnostics.packedFixedRecentCount}；high_relevance: ${result.pack.diagnostics.packedHighRelevanceCount}</p>
+        <p>skippedByTokenBudget: ${result.pack.diagnostics.skippedByTokenBudget}；skippedByCount: ${result.pack.diagnostics.skippedByCount}</p>
+        <textarea class="wm-textarea" readonly>${esc(result.pack.text)}</textarea>
+        <p>错误降级：${esc(result.errors.length ? result.errors.map(error => error.source + ': ' + error.message).join('\n') : '无')}</p>
+      </div>`;
   }
 
   private bindEvents(): void {
+    for (const [id, key] of [['plotline', 'filterPlotline'], ['date', 'filterDate'], ['start', 'filterStart'], ['end', 'filterEnd']] as const) {
+      const input = this.container.querySelector<HTMLInputElement>('#wm-filter-' + id)!;
+      input.addEventListener('change', () => { this[key] = input.value; this.render(); });
+    }
+    this.container.querySelectorAll<HTMLElement>('.wm-resummarize').forEach(button => button.addEventListener('click', async () => {
+      if (!confirm('根据当前有效正文重新总结整个批次？')) return;
+      button.setAttribute('disabled', '');
+      try { await backend.resummarizeMemories({ chatId: this.chatId, branchId: this.branchId, batchId: button.dataset.batch }); await this.refresh(); }
+      catch (error) { showToast(error instanceof Error ? error.message : String(error), 'error'); }
+      finally { button.removeAttribute('disabled'); }
+    }));
     // Search input
     const searchInput = this.container.querySelector<HTMLInputElement>('#wm-mem-search');
     searchInput?.addEventListener('input', () => {
@@ -197,10 +209,10 @@ export class MemoryView {
       try {
         showToast('正在重建向量索引...', 'info');
         const res = await backend.rebuildVectors(this.chatId, this.branchId);
-        showToast(`向量重建完成，处理了 ${res.processed} 条记忆`, 'success');
+        showToast(`已索引 ${res.indexed}，失败 ${res.failed}，移除 ${res.removed}`, res.failed ? 'warning' : 'success');
         await this.refresh();
-      } catch (err: any) {
-        showToast(err.message || '重建向量索引失败', 'error');
+      } catch (err) {
+        showToast((err instanceof Error ? err.message : String(err)) || '重建向量索引失败', 'error');
       }
     });
 
@@ -214,8 +226,8 @@ export class MemoryView {
           await backend.toggleMemoryActive(id, !currentStale);
           showToast(!currentStale ? '已禁用该条记忆' : '已恢复该条记忆', 'success');
           await this.refresh();
-        } catch (err: any) {
-          showToast(err.message || '操作失败', 'error');
+        } catch (err) {
+          showToast((err instanceof Error ? err.message : String(err)) || '操作失败', 'error');
         }
       });
     });
@@ -236,8 +248,8 @@ export class MemoryView {
         });
         showToast('召回测试完成！', 'success');
         this.render();
-      } catch (err: any) {
-        showToast(err.message || '召回测试失败', 'error');
+      } catch (err) {
+        showToast((err instanceof Error ? err.message : String(err)) || '召回测试失败', 'error');
       }
     });
   }

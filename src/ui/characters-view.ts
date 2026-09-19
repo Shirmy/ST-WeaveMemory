@@ -1,5 +1,6 @@
 import { backend } from '../api/backend-client';
 import type { CharacterProfile, CharacterTrace, StateSnapshot } from '../types';
+import { escapeHtml as esc } from './text';
 import { showToast } from './toast';
 
 export class CharactersView {
@@ -8,10 +9,14 @@ export class CharactersView {
   private snapshot: StateSnapshot | null = null;
   private chatId: string = '';
   private branchId: string = '';
+  private syncStatus = '暂无数据';
+  private relevantCharacterIds: string[] = [];
 
   constructor(private readonly container: HTMLElement) {}
 
-  setData(chatId: string, branchId: string, snapshot: StateSnapshot): void {
+  setData(chatId: string, branchId: string, snapshot: StateSnapshot, syncStatus: string, relevantCharacterIds: string[]): void {
+    this.syncStatus = syncStatus;
+    this.relevantCharacterIds = relevantCharacterIds;
     this.chatId = chatId;
     this.branchId = branchId;
     this.snapshot = snapshot;
@@ -46,10 +51,11 @@ export class CharactersView {
               const isSelected = id === this.selectedCharacterId;
               const lockedCount = p.lockedPaths?.length || 0;
               return `
-                <div class="wm-char-item ${isSelected ? 'wm-active' : ''}" data-char-id="${id}">
+                <div class="wm-char-item ${isSelected ? 'wm-active' : ''}" data-char-id="${esc(id)}">
                   <div>
-                    <div style="font-weight:500;">${p.canonicalName || id}</div>
-                    <div style="font-size:11px; color:var(--wm-text-muted);">ID: ${id}</div>
+                    <div style="font-weight:500;">${esc(p.canonicalName || id)}</div>
+                    <div>${esc(this.syncStatus)} · ${this.relevantCharacterIds.includes(id) ? '当前场景相关' : '当前场景未选中'}</div>
+                    <div style="font-size:11px; color:var(--wm-text-muted);">ID: ${esc(id)}</div>
                   </div>
                   ${lockedCount > 0 ? `<span style="color:#fbbf24; font-size:11px;" title="${lockedCount} 个锁定字段"><i class="fa-solid fa-lock"></i> ${lockedCount}</span>` : ''}
                 </div>
@@ -74,8 +80,8 @@ export class CharactersView {
     return `
       <div style="display:flex; justify-content:space-between; align-items:center; background:var(--wm-card-bg); padding:12px 16px; border-radius:var(--wm-radius); border:1px solid var(--wm-card-border);">
         <div>
-          <span style="font-size:16px; font-weight:600;">${profile.canonicalName || profile.characterId}</span>
-          <span style="font-size:12px; color:var(--wm-text-muted); margin-left:8px;">别名: ${profile.aliases?.length ? profile.aliases.join(', ') : '无'}</span>
+          <span style="font-size:16px; font-weight:600;">${esc(profile.canonicalName || profile.characterId)}</span>
+          <span style="font-size:12px; color:var(--wm-text-muted); margin-left:8px;">别名: ${esc(profile.aliases?.length ? profile.aliases.join(', ') : '无')}</span>
         </div>
         <div class="wm-drawer-actions">
           <button class="wm-sub-btn ${this.currentSubTab === 'profile' ? 'wm-active' : ''}" id="wm-subtab-profile"><i class="fa-solid fa-id-card"></i> 谱 (Profile)</button>
@@ -92,7 +98,7 @@ export class CharactersView {
     const sourcePriority = profile.sourcePriority || {};
 
     const renderField = (groupName: string, fieldName: string, label: string, value: unknown) => {
-      const fullPath = `${groupName}.${fieldName}`;
+      const fullPath = groupName ? `${groupName}.${fieldName}` : fieldName;
       const isLocked = lockedPaths.has(fullPath);
       const isManual = sourcePriority[fullPath] === 'manual';
       const displayVal = Array.isArray(value) ? value.join(', ') : String(value ?? '');
@@ -103,24 +109,36 @@ export class CharactersView {
             <span>${label}</span>
             <div style="display:flex; align-items:center; gap:6px;">
               ${isManual ? '<span style="font-size:10px; background:rgba(56,189,248,0.2); color:#38bdf8; padding:1px 6px; border-radius:4px;">手动修改</span>' : ''}
-              <button class="wm-lock-btn ${isLocked ? 'locked' : ''}" data-field-path="${fullPath}" title="${isLocked ? '已锁定：AI更新不可覆盖' : '点击锁定字段'}">
+              <button class="wm-lock-btn ${isLocked ? 'locked' : ''}" data-field-path="${esc(fullPath)}" title="${isLocked ? '已锁定：AI更新不可覆盖' : '点击锁定字段'}">
                 <i class="fa-solid ${isLocked ? 'fa-lock' : 'fa-lock-open'}"></i>
               </button>
               ${isManual || isLocked ? `
-                <button class="wm-lock-btn" data-restore-field="${fullPath}" title="恢复 AI 自动管理" style="color:var(--wm-accent);">
+                <button class="wm-lock-btn" data-restore-field="${esc(fullPath)}" title="恢复 AI 自动管理" style="color:var(--wm-accent);">
                   <i class="fa-solid fa-rotate-left"></i>
                 </button>
               ` : ''}
             </div>
           </div>
           <div class="wm-field-row">
-            <input type="text" class="wm-input wm-profile-input" style="flex:1;" data-field-path="${fullPath}" value="${displayVal}" placeholder="请输入${label}..." />
+            <input type="text" class="wm-input wm-profile-input" style="flex:1;" data-field-path="${esc(fullPath)}" value="${esc(displayVal)}" placeholder="请输入${label}..." />
           </div>
         </div>
       `;
     };
 
     return `
+      <details class="wm-card"><summary>查看来源</summary><pre>${esc(JSON.stringify({ ...profile.source, sourcePriority: profile.sourcePriority }, null, 2))}</pre></details>
+      <div class="wm-card">
+        ${renderField('', 'canonicalName', '名字', profile.canonicalName)}
+        ${renderField('', 'aliases', '别名（逗号分隔）', profile.aliases)}
+      </div>
+      <div class="wm-card"><h4>身份</h4>
+        ${renderField('identity', 'occupation', '职业', profile.identity.occupation)}
+        ${renderField('identity', 'organizations', '组织（逗号分隔）', profile.identity.organizations)}
+        ${renderField('identity', 'socialIdentity', '社会身份（逗号分隔）', profile.identity.socialIdentity)}
+        ${renderField('identity', 'background', '背景', profile.identity.background)}
+        ${renderField('identity', 'importantRelations', '重要关系（逗号分隔）', profile.identity.importantRelations)}
+      </div>
       <div class="wm-card">
         <div class="wm-card-header">
           <span class="wm-card-title"><i class="fa-solid fa-user"></i> 基础信息</span>
@@ -129,8 +147,9 @@ export class CharactersView {
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           ${renderField('basic', 'gender', '性别', profile.basic?.gender)}
           ${renderField('basic', 'age', '年龄', profile.basic?.age)}
-          ${renderField('basic', 'species', '种族/物种', profile.basic?.species)}
-          ${renderField('basic', 'status', '状态/生死', profile.basic?.status)}
+          ${renderField('basic', 'race', '种族/物种', profile.basic?.race)}
+          ${renderField('basic', 'birthday', '生日', profile.basic?.birthday)}
+          ${renderField('basic', 'notes', '备注', profile.basic?.notes)}
         </div>
       </div>
 
@@ -139,10 +158,13 @@ export class CharactersView {
           <span class="wm-card-title"><i class="fa-solid fa-shirt"></i> 外貌形态</span>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          ${renderField('appearance', 'build', '体型', profile.appearance?.build)}
+          ${renderField('appearance', 'face', '面容', profile.appearance?.face)}
+          ${renderField('appearance', 'notes', '外貌备注', profile.appearance?.notes)}
           ${renderField('appearance', 'height', '身高/体型', profile.appearance?.height)}
           ${renderField('appearance', 'hair', '发型/发色', profile.appearance?.hair)}
           ${renderField('appearance', 'eyes', '眼瞳', profile.appearance?.eyes)}
-          ${renderField('appearance', 'clothing', '常穿服饰', profile.appearance?.clothing)}
+          ${renderField('appearance', 'clothingStyle', '常穿服饰', profile.appearance?.clothingStyle)}
           <div style="grid-column:1 / -1;">
             ${renderField('appearance', 'distinctiveFeatures', '显著特征 (逗号分隔)', profile.appearance?.distinctiveFeatures)}
           </div>
@@ -155,6 +177,7 @@ export class CharactersView {
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           <div style="grid-column:1 / -1;">
+            ${renderField('personality', 'expressionHabits', '表达习惯（逗号分隔）', profile.personality?.expressionHabits)}
             ${renderField('personality', 'coreTraits', '核心特质 (逗号分隔)', profile.personality?.coreTraits)}
           </div>
           <div style="grid-column:1 / -1;">
@@ -180,7 +203,7 @@ export class CharactersView {
         <div id="wm-life-details-list" style="display:flex; flex-direction:column; gap:8px;">
           ${(profile.lifeDetails || []).map((detail, idx) => `
             <div style="display:flex; gap:8px; align-items:center;">
-              <input type="text" class="wm-input wm-life-detail-input" style="flex:1;" value="${detail}" />
+              <input type="text" class="wm-input wm-life-detail-input" style="flex:1;" value="${esc(detail)}" />
               <button class="wm-icon-btn wm-del-life-detail" data-index="${idx}"><i class="fa-solid fa-trash"></i></button>
             </div>
           `).join('')}
@@ -190,11 +213,16 @@ export class CharactersView {
   }
 
   private renderTraceTab(profile: CharacterProfile, trace?: CharacterTrace): string {
-    const inner = trace?.affinity?.inner ?? 0;
-    const outer = trace?.affinity?.outer ?? 0;
+    const inner = trace?.affinity?.inner ?? '';
+    const outer = trace?.affinity?.outer ?? '';
     const note = trace?.affinity?.note ?? '';
 
     return `
+      <details class="wm-card"><summary>迹的来源</summary><pre>${esc(trace ? JSON.stringify(trace.source, null, 2) : '暂无数据')}</pre></details>
+      <div class="wm-card"><h4>信息可见范围</h4>
+        <div id="wm-visibility-list">${(trace?.visibility ?? []).map(item => `<div class="wm-visibility-row" data-id="${esc(item.id)}"><input class="wm-input wm-vis-fact" placeholder="事实" value="${esc(item.fact)}" /><input class="wm-input wm-vis-known" placeholder="知情人物 ID（逗号分隔）" value="${esc(item.knownBy.join(', '))}" /><input class="wm-input wm-vis-unknown" placeholder="不知情人物 ID（逗号分隔）" value="${esc(item.unknownBy?.join(', ') ?? '')}" /><button class="wm-vis-remove">删除</button></div>`).join('')}</div>
+        <button id="wm-vis-add" class="wm-btn">添加可见事实</button>
+      </div>
       <div class="wm-card">
         <div class="wm-card-header">
           <span class="wm-card-title"><i class="fa-solid fa-heart"></i> 好感度与态度 (Affinity)</span>
@@ -203,7 +231,7 @@ export class CharactersView {
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
           <div class="wm-form-group">
             <div class="wm-label"><span>内心好感度 (-2 ~ +2)</span><b id="wm-inner-val">${inner}</b></div>
-            <input type="range" class="wm-input" id="wm-affinity-inner" min="-2" max="2" step="1" value="${inner}" />
+            <input type="number" placeholder="未知" class="wm-input" id="wm-affinity-inner" min="-2" max="2" step="1" value="${inner}" />
             <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--wm-text-muted);">
               <span>-2 极度厌恶</span>
               <span>0 中立客套</span>
@@ -212,7 +240,7 @@ export class CharactersView {
           </div>
           <div class="wm-form-group">
             <div class="wm-label"><span>表面态度 (-2 ~ +2)</span><b id="wm-outer-val">${outer}</b></div>
-            <input type="range" class="wm-input" id="wm-affinity-outer" min="-2" max="2" step="1" value="${outer}" />
+            <input type="number" placeholder="未知" class="wm-input" id="wm-affinity-outer" min="-2" max="2" step="1" value="${outer}" />
             <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--wm-text-muted);">
               <span>-2 冷酷抵触</span>
               <span>0 平淡礼貌</span>
@@ -221,7 +249,7 @@ export class CharactersView {
           </div>
           <div class="wm-form-group" style="grid-column:1 / -1;">
             <div class="wm-label"><span>好感度备注 / 态度原因</span></div>
-            <input type="text" class="wm-input" id="wm-affinity-note" value="${note}" placeholder="例如：因为昨天救了她一次，心存感激但表面克制" />
+            <input type="text" class="wm-input" id="wm-affinity-note" value="${esc(note)}" placeholder="例如：因为昨天救了她一次，心存感激但表面克制" />
           </div>
         </div>
       </div>
@@ -234,7 +262,7 @@ export class CharactersView {
         <div id="wm-tendencies-list" style="display:flex; flex-direction:column; gap:8px;">
           ${(trace?.longTermTendencies || []).map((item, idx) => `
             <div style="display:flex; gap:8px; align-items:center;">
-              <input type="text" class="wm-input wm-tendency-input" style="flex:1;" data-id="${item.id}" value="${item.text}" placeholder="倾向描述..." />
+              <input type="text" class="wm-input wm-tendency-input" style="flex:1;" data-id="${esc(item.id)}" value="${esc(item.text)}" placeholder="倾向描述..." />
               <button class="wm-icon-btn wm-del-tendency" data-index="${idx}"><i class="fa-solid fa-trash"></i></button>
             </div>
           `).join('')}
@@ -249,7 +277,7 @@ export class CharactersView {
         <div id="wm-situations-list" style="display:flex; flex-direction:column; gap:8px;">
           ${(trace?.currentSituations || []).map((item, idx) => `
             <div style="display:flex; gap:8px; align-items:center;">
-              <input type="text" class="wm-input wm-situation-input" style="flex:1;" data-id="${item.id}" value="${item.text}" placeholder="处境描述..." />
+              <input type="text" class="wm-input wm-situation-input" style="flex:1;" data-id="${esc(item.id)}" value="${esc(item.text)}" placeholder="处境描述..." />
               <button class="wm-icon-btn wm-del-situation" data-index="${idx}"><i class="fa-solid fa-trash"></i></button>
             </div>
           `).join('')}
@@ -259,6 +287,16 @@ export class CharactersView {
   }
 
   private bindEvents(): void {
+    this.container.querySelectorAll('.wm-vis-remove').forEach(button => button.addEventListener('click', () => button.closest('.wm-visibility-row')?.remove()));
+    this.container.querySelector('#wm-vis-add')?.addEventListener('click', () => {
+      const row = document.createElement('div');
+      row.className = 'wm-visibility-row'; row.dataset.id = crypto.randomUUID();
+      for (const [className, placeholder] of [['wm-vis-fact', '事实'], ['wm-vis-known', '知情人物 ID（逗号分隔）'], ['wm-vis-unknown', '不知情人物 ID（逗号分隔）']]) {
+        const input = document.createElement('input'); input.className = 'wm-input ' + className; input.placeholder = placeholder; row.append(input);
+      }
+      const remove = document.createElement('button'); remove.textContent = '删除'; remove.addEventListener('click', () => row.remove()); row.append(remove);
+      this.container.querySelector('#wm-visibility-list')?.append(row);
+    });
     // Character selection
     this.container.querySelectorAll('.wm-char-item').forEach(el => {
       el.addEventListener('click', () => {
@@ -299,8 +337,8 @@ export class CharactersView {
         const res = await backend.getCurrentState(this.chatId, this.branchId);
         this.snapshot = res.snapshot;
         this.render();
-      } catch (err: any) {
-        showToast(err.message || '添加失败', 'error');
+      } catch (err) {
+        showToast((err instanceof Error ? err.message : String(err)) || '添加失败', 'error');
       }
     });
 
@@ -324,8 +362,8 @@ export class CharactersView {
           const res = await backend.getCurrentState(this.chatId, this.branchId);
           this.snapshot = res.snapshot;
           this.render();
-        } catch (err: any) {
-          showToast(err.message || '操作失败', 'error');
+        } catch (err) {
+          showToast((err instanceof Error ? err.message : String(err)) || '操作失败', 'error');
         }
       });
     });
@@ -348,8 +386,8 @@ export class CharactersView {
           const res = await backend.getCurrentState(this.chatId, this.branchId);
           this.snapshot = res.snapshot;
           this.render();
-        } catch (err: any) {
-          showToast(err.message || '操作失败', 'error');
+        } catch (err) {
+          showToast((err instanceof Error ? err.message : String(err)) || '操作失败', 'error');
         }
       });
     });
@@ -362,10 +400,15 @@ export class CharactersView {
         for (const input of Array.from(inputs)) {
           const path = input.dataset.fieldPath;
           if (!path) continue;
-          let val: any = input.value.trim();
-          if (path.endsWith('distinctiveFeatures') || path.endsWith('coreTraits')) {
+          let val: string | string[] = input.value.trim();
+          if (['aliases', 'distinctiveFeatures', 'coreTraits', 'behaviorStyle', 'expressionHabits', 'likes', 'dislikes', 'principles', 'organizations', 'socialIdentity', 'importantRelations'].includes(path.split('.').at(-1)!)) {
             val = val ? val.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean) : [];
           }
+          const [group, field] = path.split('.');
+          const currentProfile = this.snapshot!.profiles[this.selectedCharacterId];
+          const currentGroup = currentProfile[group as keyof CharacterProfile];
+          const previous = !field ? currentGroup : currentGroup && typeof currentGroup === 'object' ? (currentGroup as Record<string, unknown>)[field] : undefined;
+          if (JSON.stringify(previous) === JSON.stringify(val) || (previous === undefined && (!val.length))) continue;
           await backend.manualEditState({
             chatId: this.chatId,
             branchId: this.branchId,
@@ -391,27 +434,37 @@ export class CharactersView {
         const res = await backend.getCurrentState(this.chatId, this.branchId);
         this.snapshot = res.snapshot;
         this.render();
-      } catch (err: any) {
-        showToast(err.message || '保存失败', 'error');
+      } catch (err) {
+        showToast((err instanceof Error ? err.message : String(err)) || '保存失败', 'error');
       }
     });
 
     // Save trace changes
     this.container.querySelector('#wm-save-trace-btn')?.addEventListener('click', async () => {
       if (!this.selectedCharacterId) return;
-      const inner = Number((this.container.querySelector('#wm-affinity-inner') as HTMLInputElement)?.value || 0);
-      const outer = Number((this.container.querySelector('#wm-affinity-outer') as HTMLInputElement)?.value || 0);
+      const innerText = this.container.querySelector<HTMLInputElement>('#wm-affinity-inner')!.value;
+      const inner = innerText === '' ? null : Number(innerText);
+      const outerText = this.container.querySelector<HTMLInputElement>('#wm-affinity-outer')!.value;
+      const outer = outerText === '' ? null : Number(outerText);
       const note = (this.container.querySelector('#wm-affinity-note') as HTMLInputElement)?.value || '';
 
       const tendencies = Array.from(this.container.querySelectorAll<HTMLInputElement>('.wm-tendency-input')).map((el, i) => ({
+        ...this.snapshot?.traces[this.selectedCharacterId!]?.longTermTendencies.find(item => item.id === el.dataset.id),
         id: el.dataset.id || `tendency_${i + 1}`,
         text: el.value.trim()
       })).filter(t => t.text);
 
       const situations = Array.from(this.container.querySelectorAll<HTMLInputElement>('.wm-situation-input')).map((el, i) => ({
+        ...this.snapshot?.traces[this.selectedCharacterId!]?.currentSituations.find(item => item.id === el.dataset.id),
         id: el.dataset.id || `situation_${i + 1}`,
         text: el.value.trim()
       })).filter(s => s.text);
+
+      const visibility = Array.from(this.container.querySelectorAll<HTMLElement>('.wm-visibility-row')).map(row => ({
+        id: row.dataset.id!, fact: row.querySelector<HTMLInputElement>('.wm-vis-fact')!.value.trim(),
+        knownBy: row.querySelector<HTMLInputElement>('.wm-vis-known')!.value.split(/[,，]/).map(value => value.trim()).filter(Boolean),
+        unknownBy: row.querySelector<HTMLInputElement>('.wm-vis-unknown')!.value.split(/[,，]/).map(value => value.trim()).filter(Boolean)
+      })).filter(item => item.fact);
 
       try {
         await backend.manualEditState({
@@ -420,7 +473,7 @@ export class CharactersView {
           target: 'trace',
           entityId: this.selectedCharacterId,
           fieldPath: 'affinity',
-          value: { inner, outer, note }
+          value: { inner, outer, ...(note ? { note } : {}) }
         });
         await backend.manualEditState({
           chatId: this.chatId,
@@ -439,12 +492,13 @@ export class CharactersView {
           value: situations
         });
 
+        await backend.manualEditState({ chatId: this.chatId, branchId: this.branchId, target: 'trace', entityId: this.selectedCharacterId, fieldPath: 'visibility', value: visibility });
         showToast('人物好感度与倾向已保存！', 'success');
         const res = await backend.getCurrentState(this.chatId, this.branchId);
         this.snapshot = res.snapshot;
         this.render();
-      } catch (err: any) {
-        showToast(err.message || '保存失败', 'error');
+      } catch (err) {
+        showToast((err instanceof Error ? err.message : String(err)) || '保存失败', 'error');
       }
     });
 

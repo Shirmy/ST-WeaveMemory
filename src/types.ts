@@ -5,6 +5,15 @@ export type HealthResponse = {
   apiVersion: number;
   schemaVersion: number;
   capabilities: string[];
+  database: { available: boolean; journalMode: string; databasePath: string };
+};
+
+export type DebugResponse = {
+  generation?: { at: string; longMemory: string; currentState: string; estimatedTokens: number };
+  summary?: { at: string; durationMs: number; promptVersion: string; model: string; channelId: string };
+  recall?: { at: string; timings?: { bm25Ms: number; embeddingMs: number; rrfMs: number; rerankMs: number; totalMs: number }; packMs?: number; errors: Array<{ source: string; code: string; message: string }> };
+  stateTask: { durationMs: number; model: string; channelId: string; promptVersion: string } | null;
+  database: { available: boolean; journalMode: string; databasePath: string };
 };
 
 export type GenerationPrepareRequest = {
@@ -111,126 +120,45 @@ export type BranchResponse = {
 
 // AI Channels & Models
 export type AiChannel = {
-  id: string;
+  channelId: string;
   name: string;
-  type: 'openai' | 'claude' | 'gemini' | 'ollama' | 'custom' | string;
+  apiType: 'openai-compatible';
   baseUrl: string;
-  apiKey?: string;
-  hasApiKey?: boolean;
-  models?: string[];
-  headers?: Record<string, string>;
-  enabled: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  hasApiKey: boolean;
+  timeout: number | null;
+  headers: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ModelRole = 'summary' | 'state' | 'embedding' | 'rerank';
 
 export type ModelBinding = {
+  role: ModelRole;
   channelId: string;
   model: string;
+  updatedAt: string;
 };
 
-export type ModelBindings = Record<ModelRole, ModelBinding>;
+export type ModelBindings = Record<ModelRole, ModelBinding | null>;
 
 export type PromptPreset = {
-  id: string;
+  presetId: string;
+  promptType: 'state' | 'summary';
   name: string;
-  type: 'state' | 'summary';
-  prompt: string;
+  content: { system: string; task: string };
   version: number;
-  active: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-// Character Profiles & Traces
-export type CharacterProfileGroup = Record<string, string | string[] | undefined>;
-
-export type CharacterProfile = {
-  characterId: string;
-  canonicalName: string;
-  aliases: string[];
-  basic: CharacterProfileGroup;
-  appearance: CharacterProfileGroup;
-  identity: CharacterProfileGroup;
-  personality: CharacterProfileGroup;
-  lifeDetails: string[];
-  lockedPaths: string[];
-  sourcePriority: Record<string, 'manual' | 'story' | 'card'>;
-  source: { branchId: string; sourceFloorIds?: string[]; sourceHostChatIds?: string[]; sourceType?: string };
+  isBuiltin: boolean;
+  createdAt: string;
   updatedAt: string;
 };
 
-export type CharacterTrace = {
-  characterId: string;
-  longTermTendencies: Array<{ id: string; text: string; targetCharacterId?: string }>;
-  currentSituations: Array<{ id: string; text: string; targetCharacterId?: string }>;
-  visibility: Array<{ id: string; fact: string; knownBy: string[]; unknownBy?: string[] }>;
-  affinity: { inner: number | null; outer: number | null; note?: string };
-  source: { branchId: string; sourceFloorIds?: string[]; sourceHostChatIds?: string[]; sourceType?: string };
-  updatedAt: string;
-};
-
-// Story
-export type CalendarEntry = {
-  id: string;
-  dateKey: string;
-  type: 'story' | 'festival' | 'birthday' | 'anniversary' | 'custom';
-  title: string;
-  description: string;
-  confirmed?: boolean;
-  sourceFloorIds?: string[];
-};
-
-export type Plotline = {
-  id: string;
-  name: string;
-  stage: '起线' | '延展' | '成形' | '收束' | '淡出';
-  timeAnchor?: string;
-  currentState: string;
-  nextStep: string;
-  drivers?: string[];
-  stalled?: boolean;
-  pinned?: boolean;
-  relatedCharacterIds?: string[];
-  sourceFloorIds?: string[];
-};
-
-export type PlotPlan = {
-  id: string;
-  type: '明线' | '暗线' | '红线';
-  title: string;
-  time: '今天' | '明天' | '后天' | '未来';
-  description: string;
-  relatedPlotlineIds?: string[];
-  pinned?: boolean;
-  status: 'planned' | 'triggered' | 'cancelled' | 'expired';
-  sourceFloorIds?: string[];
-};
-
-export type StoryState = {
-  now: {
-    currentTime?: string;
-    ongoing: Array<{ id: string; title: string; description: string; relatedCharacterIds?: string[]; relatedPlotlineIds?: string[] }>;
-    upcoming: Array<{ id: string; title: string; expectedTime?: string; description: string; relatedCharacterIds?: string[]; relatedPlotlineIds?: string[] }>;
-  };
-  calendar: CalendarEntry[];
-  plotlines: Plotline[];
-  plotPlans: PlotPlan[];
-  source: { branchId: string; sourceFloorIds?: string[]; sourceHostChatIds?: string[]; sourceType?: string };
-};
-
-export type StateSnapshot = {
-  schemaVersion: number;
-  branchId: string;
-  profiles: Record<string, CharacterProfile>;
-  traces: Record<string, CharacterTrace>;
-  story: StoryState;
-  updatedAt: string;
-};
+// State types are synchronized from the server schema, not independently defined.
+export type { CharacterProfile, CharacterTrace, CalendarEntry, Plotline, PlotPlan, StoryState, StateSnapshot } from './state-schema';
+import type { StateSnapshot } from './state-schema';
 
 export type CurrentStateResponse = {
+  relevantCharacterIds: string[];
   chatId: string;
   branchId: string;
   stateNodeId: string | null;
@@ -272,28 +200,18 @@ export type LongMemoryRecord = {
   updatedAt: string;
 };
 
+export type FusedMemory = { memory: LongMemoryRecord; rrfScore: number; ranks: Partial<Record<'bm25' | 'embedding', number>>; scores: Partial<Record<'bm25' | 'embedding', number>> };
 export type RecallDebugResponse = {
   query: string;
-  candidates: {
-    bm25: Array<{ memoryId: string; score: number }>;
-    embedding: Array<{ memoryId: string; score: number }>;
-    rrf: Array<{ memoryId: string; score: number }>;
-    rerank: Array<{ memoryId: string; score: number }>;
-  };
-  final: LongMemoryRecord[];
-  pack: {
-    text: string;
-    tokens: number;
-    budget: number;
-    count: number;
-  };
-  timings: {
-    bm25Ms: number;
-    embeddingMs: number;
-    rrfMs: number;
-    rerankMs: number;
-    totalMs: number;
-  };
+  settings: RecallSettings;
+  bm25: Array<{ memory: LongMemoryRecord; score: number }>;
+  embedding: Array<{ memory: LongMemoryRecord; score: number }>;
+  rrf: FusedMemory[];
+  rerank: { status: 'applied' | 'disabled' | 'not_configured' | 'no_candidates' | 'skipped_within_final' | 'failed'; documentCount: number; model: string | null; error?: string; candidates: Array<FusedMemory & { rerankScore: number }> };
+  final: FusedMemory[];
+  errors: Array<{ source: string; code: string; message: string }>;
+  pack: { memories: Array<{ memory: LongMemoryRecord; source: 'fixed_recent' | 'high_relevance'; priority: 'fixed_recent' | 'high_relevance'; fused?: FusedMemory; estimatedTokens: number }>; text: string; tokenLimit: number; estimatedTokens: number; currentStateTokens: number; diagnostics: { recallCandidateCount: number; fixedRecentCandidateCount: number; deduplicatedCount: number; candidateCount: number; fixedRecentCount: number; packedFixedRecentCount: number; packedHighRelevanceCount: number; skippedByTokenBudget: number; skippedByCount: number; packedCount: number } };
+  timings: { bm25Ms: number; embeddingMs: number; rrfMs: number; rerankMs: number; packMs: number; totalMs: number };
 };
 
 // Settings
@@ -315,9 +233,9 @@ export type RecallSettings = {
   rerankEnabled: boolean;
   rerankCandidateLimit: number;
   finalRecallCount: number;
+  tokenRatio: number;
   minTokenBudget: number;
   maxTokenBudget: number;
-  contextRatioBudget: number;
 };
 
 export type FullAiSettingsResponse = {
@@ -329,12 +247,7 @@ export type FullAiSettingsResponse = {
   recallLimits: Record<string, { min: number; max: number }>;
 };
 
-// Backwards-compatible alias
-export type AiSettingsResponse = {
-  longMemory: { summaryIntervalFloors: number };
-  state?: StateTaskSettings;
-  recall?: RecallSettings;
-};
+export type AiSettingsResponse = Pick<FullAiSettingsResponse, 'state' | 'longMemory' | 'recall'>;
 
 // State Tasks
 export type StateTaskRecord = {
@@ -342,9 +255,9 @@ export type StateTaskRecord = {
   chatId: string;
   branchId: string;
   floorId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'stale';
   attempts: number;
-  error?: string | null;
+  errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
 };

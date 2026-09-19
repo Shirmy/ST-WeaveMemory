@@ -16,6 +16,7 @@ export class MainModal {
   private chatId: string = '';
   private branchId: string = '';
   private currentState: CurrentStateResponse | null = null;
+  private stateRequest = 0;
 
   // Sub-views
   private charactersView: CharactersView | null = null;
@@ -73,8 +74,11 @@ export class MainModal {
   }
 
   async setChatContext(chatId: string, branchId?: string): Promise<void> {
+    this.stateRequest++;
+    this.currentState = null;
     this.chatId = chatId;
     this.branchId = branchId || '';
+    this.overlay?.querySelector('#wm-view-mount')?.replaceChildren();
     if (this.isOpen()) {
       await this.refreshState();
       await this.renderActiveTab();
@@ -104,21 +108,34 @@ export class MainModal {
 
   private async refreshState(): Promise<void> {
     if (!this.chatId) return;
+    const request = ++this.stateRequest;
     try {
-      this.currentState = await backend.getCurrentState(this.chatId, this.branchId);
+      const state = await backend.getCurrentState(this.chatId, this.branchId);
+      if (request !== this.stateRequest) return;
+      this.currentState = state;
       const badge = this.overlay?.querySelector('#wm-top-sync-badge');
       if (badge && this.currentState) {
         badge.className = `wm-status-badge ${this.currentState.syncStatus === 'synced' ? 'synced' : this.currentState.syncStatus === 'failed' ? 'failed' : 'pending'}`;
         badge.textContent = this.currentState.syncStatus;
       }
-    } catch {
-      // Chat might be fresh or offline
+    } catch (error) {
+      if (request !== this.stateRequest) return;
+      this.currentState = null;
+      showToast(error instanceof Error ? error.message : String(error), 'error');
     }
   }
 
   private async renderActiveTab(): Promise<void> {
-    const mount = this.overlay?.querySelector<HTMLElement>('#wm-view-mount');
-    if (!mount) return;
+    const root = this.overlay?.querySelector<HTMLElement>('#wm-view-mount');
+    if (!root) return;
+    const mount = document.createElement('div');
+    root.replaceChildren(mount);
+    // Each view owns its mount: late responses can only update a detached view.
+    this.charactersView = new CharactersView(mount);
+    this.storyView = new StoryView(mount);
+    this.memoryView = new MemoryView(mount);
+    this.settingsView = new SettingsView(mount);
+    this.debugView = new DebugView(mount);
 
     // Update tab bar UI
     this.overlay?.querySelectorAll('.wm-nav-tab').forEach(tab => {
@@ -130,7 +147,7 @@ export class MainModal {
     switch (this.currentTab) {
       case 'characters':
         if (this.currentState) {
-          this.charactersView?.setData(this.chatId, this.currentState.branchId, this.currentState.snapshot);
+          this.charactersView?.setData(this.chatId, this.currentState.branchId, this.currentState.snapshot, this.currentState.syncStatus, this.currentState.relevantCharacterIds);
         } else {
           mount.innerHTML = '<div class="wm-card">正在连接状态引擎...</div>';
         }
@@ -155,6 +172,7 @@ export class MainModal {
   }
 
   private bindGlobalEvents(): void {
+    window.addEventListener('weavememory-settings-changed', () => this.settingsView?.syncLocalSettings());
     // Close on backdrop click
     this.overlay?.addEventListener('click', e => {
       if (e.target === this.overlay) this.close();
@@ -177,6 +195,7 @@ export class MainModal {
         const t = (tab as HTMLElement).dataset.tab as MainTabType;
         if (t) {
           this.currentTab = t;
+          if (t === 'characters' || t === 'story') await this.refreshState();
           await this.renderActiveTab();
         }
       });

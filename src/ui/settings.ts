@@ -1,6 +1,7 @@
 import { getSettings, updateSettings } from '../settings/store';
 import { backend } from '../api/backend-client';
 import { mainModal } from './main-modal';
+import { showToast } from './toast';
 
 const PANEL_ID = 'weavememory-phase9-settings';
 
@@ -42,6 +43,13 @@ export function mountSettingsPanel(): void {
   count.value = String(settings.recentFloorCount);
   regex.value = settings.recentSummaryRegex;
   longMemoryInterval.value = String(settings.longMemoryIntervalFloors);
+  window.addEventListener('weavememory-settings-changed', () => {
+    const current = getSettings();
+    mode.value = current.recentContextMode;
+    count.value = String(current.recentFloorCount);
+    regex.value = current.recentSummaryRegex;
+    longMemoryInterval.value = String(current.longMemoryIntervalFloors);
+  });
 
   void backend.getAiSettings().then(result => {
     longMemoryInterval.value = String(result.longMemory.summaryIntervalFloors);
@@ -54,7 +62,6 @@ export function mountSettingsPanel(): void {
   longMemoryInterval.addEventListener('change', () => {
     const value = Math.min(500, Math.max(1, Number(longMemoryInterval.value)));
     longMemoryInterval.value = String(value);
-    updateSettings({ longMemoryIntervalFloors: value });
-    void backend.saveLongMemorySettings(value).catch(error => console.warn('[WeaveMemory] long-memory settings save failed', error));
+    void backend.saveLongMemorySettings(value).then(() => updateSettings({ longMemoryIntervalFloors: value })).catch(error => { longMemoryInterval.value = String(getSettings().longMemoryIntervalFloors); showToast(error instanceof Error ? error.message : String(error), 'error'); });
   });
 }

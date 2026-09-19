@@ -17,7 +17,10 @@ export function showToast(message: string, type: 'info' | 'success' | 'warning' 
     error: '<i class="fa-solid fa-circle-exclamation" style="color:#ef4444"></i>'
   };
 
-  toast.innerHTML = `${icons[type] ?? icons.info}<span>${message}</span>`;
+  toast.innerHTML = icons[type] ?? icons.info;
+  const text = document.createElement('span');
+  text.textContent = message;
+  toast.appendChild(text);
   wrap.appendChild(toast);
 
   setTimeout(() => {

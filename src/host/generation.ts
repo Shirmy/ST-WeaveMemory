@@ -41,6 +41,7 @@ export async function generationInterceptor(_coreChat: unknown, contextSize: num
       throw new Error(result.reason || 'WeaveMemory generation gate rejected this generation');
     }
     applyMemoryPrompts(result.longMemory || '', result.currentState || '');
+    if (settings.debug) console.debug('[WeaveMemory] generation diagnostics', result.diagnostics);
   } catch (error) {
     clearMemoryPrompts();
     if (settings.backendRequired) throw error;

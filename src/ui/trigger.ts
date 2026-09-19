@@ -1,13 +1,17 @@
 import { mainModal } from './main-modal';
 
 export function mountTrigger(): void {
+  if (!document.body) {
+    document.addEventListener('DOMContentLoaded', mountTrigger, { once: true });
+    return;
+  }
   // 1. Add floating trigger button (FAB) or top-bar button
   if (!document.getElementById('wm-fab-button')) {
     const fab = document.createElement('button');
     fab.id = 'wm-fab-button';
     fab.className = 'wm-fab-btn';
     fab.title = 'WeaveMemory 织忆控制面板';
-    fab.innerHTML = '<i class="fa-solid fa-scroll" style="font-size:16px;"></i>';
+    const icon = document.createElement('i'); icon.className = 'fa-solid fa-scroll'; icon.style.fontSize = '16px'; fab.appendChild(icon);
     fab.style.cssText = `
       position: fixed;
       bottom: 80px;
@@ -32,14 +36,23 @@ export function mountTrigger(): void {
     document.body.appendChild(fab);
   }
 
-  // 2. Add Wand menu item if available
-  const wand = document.querySelector('#wand, #wand-button, #extensions_wand');
-  if (wand && !document.getElementById('wm-wand-item')) {
+  const attachMenu = (): boolean => {
+    const menu = document.querySelector<HTMLElement>('#extensionsMenu');
+    if (!menu || document.getElementById('wm-extensions-menu-item')) return Boolean(menu);
     const item = document.createElement('div');
-    item.id = 'wm-wand-item';
+    item.id = 'wm-extensions-menu-item';
     item.className = 'list-group-item flex-container flexGap5 interactable';
-    item.innerHTML = '<i class="fa-solid fa-scroll"></i> <span>织忆 (WeaveMemory)</span>';
+    item.tabIndex = 0;
+    item.setAttribute('role', 'button');
+    item.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); mainModal.toggle(); } });
+    const icon = document.createElement('i'); icon.className = 'fa-solid fa-scroll extensionsMenuExtensionButton'; item.appendChild(icon);
+    const label = document.createElement('span'); label.textContent = '织忆 (WeaveMemory)'; item.appendChild(label);
     item.addEventListener('click', () => mainModal.toggle());
-    wand.appendChild(item);
+    menu.appendChild(item); return true;
+  };
+  if (!attachMenu()) {
+    const observer = new MutationObserver(() => { if (attachMenu()) observer.disconnect(); });
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.setTimeout(() => observer.disconnect(), 15000);
   }
 }

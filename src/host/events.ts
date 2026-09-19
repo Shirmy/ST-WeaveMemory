@@ -3,6 +3,7 @@ import { backend } from '../api/backend-client';
 import { currentChatId, currentChatMetadata, getContext } from './context';
 import { getSettings } from '../settings/store';
 import { getCurrentBranchId, resetBranchState, setCurrentBranch } from './branch-state';
+import { clearMemoryPrompts } from '../injection/prompts';
 
 function selectedSwipeId(message: any): number | null {
   return Number.isSafeInteger(message?.swipe_id) ? message.swipe_id : null;
@@ -41,8 +42,7 @@ async function finalizeLatestAiFloor(): Promise<void> {
   }
 }
 
-function currentAiFloors(): Array<{ messageIndex: number; swipeId: number | null; content: string }> {
-  const context = getContext();
+function currentAiFloors(context = getContext()): Array<{ messageIndex: number; swipeId: number | null; content: string }> {
   const chat = Array.isArray(context?.chat) ? context.chat : [];
   return chat.flatMap((message: any, messageIndex: number) => {
     if (message?.is_user !== false || message?.is_system === true) return [];
@@ -61,16 +61,19 @@ function reconcileCurrentChat(): Promise<void> {
     const context = getContext();
     const chatId = currentChatId(context);
     if (!chatId) return;
+    // Snapshot the source before awaiting: a chat switch must never copy the
+    // new chat's floors into the previous chat's reconciliation request.
+    const floors = currentAiFloors(context);
     try {
       await ensureHostBranchBinding(context, chatId);
       const branchId = getCurrentBranchId(chatId);
       const result = await backend.reconcileChat({
         chatId,
         ...(branchId ? { branchId } : {}),
-        floors: currentAiFloors()
+        floors
       });
       setCurrentBranch(chatId, result.branch);
-      void mainModal.setChatContext(chatId, result.branch?.branchId);
+      if (currentChatId(getContext()) === chatId) void mainModal.setChatContext(chatId, result.branch?.branchId);
     } catch (error) {
       console.warn('[WeaveMemory] chat reconcile failed:', error);
     }
@@ -89,6 +92,7 @@ export async function createBranchFromCurrentChat(forkFloorId: string, sourceBra
     forkFloorId
   });
   setCurrentBranch(chatId, result.branch);
+  await mainModal.setChatContext(chatId, result.branch.branchId);
   return result;
 }
 
@@ -98,6 +102,7 @@ export async function activateCurrentChatBranch(branchId: string) {
   resetBranchState(chatId);
   const result = await backend.activateBranch(chatId, branchId);
   setCurrentBranch(chatId, result.branch);
+  await mainModal.setChatContext(chatId, result.branch.branchId);
   return result;
 }
 
@@ -105,7 +110,7 @@ async function ensureHostBranchBinding(context: any, chatId: string): Promise<vo
   const metadata = currentChatMetadata(context);
   const mainChat = typeof metadata.main_chat === 'string' && metadata.main_chat && metadata.main_chat !== chatId
     ? metadata.main_chat : null;
-  const floors = currentAiFloors();
+  const floors = currentAiFloors(context);
   const result = await backend.bindHostChat({
     chatId,
     ...(mainChat ? { mainChatId: mainChat } : {}),
@@ -125,7 +130,12 @@ export function bindHostEvents(): void {
     const event = types[key];
     if (event) eventSource.on(event, () => {
       console.debug(`[WeaveMemory] host mutation: ${key}`);
-      if (key === 'CHAT_CHANGED') resetBranchState(currentChatId(getContext()));
+      if (key === 'CHAT_CHANGED') {
+        const chatId = currentChatId(getContext());
+        resetBranchState(chatId);
+        clearMemoryPrompts();
+        void mainModal.setChatContext(chatId);
+      }
       void reconcileCurrentChat();
     });
   }

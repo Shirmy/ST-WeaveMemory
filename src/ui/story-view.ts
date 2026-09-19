@@ -1,5 +1,6 @@
 import { backend } from '../api/backend-client';
 import type { CalendarEntry, Plotline, PlotPlan, StateSnapshot, StoryState } from '../types';
+import { escapeHtml as esc } from './text';
 import { showToast } from './toast';
 
 export class StoryView {
@@ -73,7 +74,7 @@ export class StoryView {
           <button class="wm-btn wm-btn-primary" id="wm-save-now-time-btn"><i class="fa-solid fa-floppy-disk"></i> 更新时间</button>
         </div>
         <div class="wm-form-group">
-          <input type="text" class="wm-input" id="wm-now-current-time" value="${currentTime}" placeholder="例如：新历344年 霜月15日 下午" />
+          <input type="text" class="wm-input" id="wm-now-current-time" value="${esc(currentTime)}" placeholder="例如：新历344年 霜月15日 下午" />
         </div>
       </div>
 
@@ -85,12 +86,12 @@ export class StoryView {
         <div id="wm-ongoing-list" style="display:flex; flex-direction:column; gap:10px;">
           ${ongoing.length === 0 ? '<div style="color:var(--wm-text-muted); font-size:12px;">暂无进行中事项</div>' : ''}
           ${ongoing.map((item, idx) => `
-            <div class="wm-card" style="background:var(--wm-bg-alt); padding:12px; gap:8px;">
+            <div class="wm-card" data-id="${esc(item.id)}" style="background:var(--wm-bg-alt); padding:12px; gap:8px;">
               <div style="display:flex; justify-content:space-between; align-items:center;">
-                <input type="text" class="wm-input wm-ongoing-title" value="${item.title}" placeholder="事项标题..." style="font-weight:600; flex:1; max-width:320px;" />
+                <input type="text" class="wm-input wm-ongoing-title" value="${esc(item.title)}" placeholder="事项标题..." style="font-weight:600; flex:1; max-width:320px;" />
                 <button class="wm-icon-btn wm-del-ongoing" data-idx="${idx}"><i class="fa-solid fa-trash"></i></button>
               </div>
-              <textarea class="wm-textarea wm-ongoing-desc" rows="2" placeholder="事项详情描述...">${item.description}</textarea>
+              <textarea class="wm-textarea wm-ongoing-desc" rows="2" placeholder="事项详情描述...">${esc(item.description)}</textarea>
             </div>
           `).join('')}
         </div>
@@ -105,13 +106,13 @@ export class StoryView {
         <div id="wm-upcoming-list" style="display:flex; flex-direction:column; gap:10px;">
           ${upcoming.length === 0 ? '<div style="color:var(--wm-text-muted); font-size:12px;">暂无即将到来事项</div>' : ''}
           ${upcoming.map((item, idx) => `
-            <div class="wm-card" style="background:var(--wm-bg-alt); padding:12px; gap:8px;">
+            <div class="wm-card" data-id="${esc(item.id)}" style="background:var(--wm-bg-alt); padding:12px; gap:8px;">
               <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                <input type="text" class="wm-input wm-upcoming-title" value="${item.title}" placeholder="事项标题..." style="font-weight:600; flex:1;" />
-                <input type="text" class="wm-input wm-upcoming-time" value="${item.expectedTime || ''}" placeholder="预计时间 (如: 明早/三日后)" style="width:160px;" />
+                <input type="text" class="wm-input wm-upcoming-title" value="${esc(item.title)}" placeholder="事项标题..." style="font-weight:600; flex:1;" />
+                <input type="text" class="wm-input wm-upcoming-time" value="${esc(item.expectedTime || '')}" placeholder="预计时间 (如: 明早/三日后)" style="width:160px;" />
                 <button class="wm-icon-btn wm-del-upcoming" data-idx="${idx}"><i class="fa-solid fa-trash"></i></button>
               </div>
-              <textarea class="wm-textarea wm-upcoming-desc" rows="2" placeholder="待办描述...">${item.description}</textarea>
+              <textarea class="wm-textarea wm-upcoming-desc" rows="2" placeholder="待办描述...">${esc(item.description)}</textarea>
             </div>
           `).join('')}
         </div>
@@ -187,8 +188,8 @@ export class StoryView {
 
         <div id="wm-cal-entries-list" style="display:flex; flex-direction:column; gap:10px;">
           ${selectedEntries.length === 0 ? '<div style="color:var(--wm-text-muted); font-size:12px;">该日暂无剧情或纪念事件</div>' : ''}
-          ${selectedEntries.map((e, idx) => `
-            <div class="wm-card" style="background:var(--wm-bg-alt); padding:12px; gap:8px;">
+          ${selectedEntries.map(e => `
+            <div class="wm-card" data-id="${esc(e.id)}" style="background:var(--wm-bg-alt); padding:12px; gap:8px;">
               <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
                 <select class="wm-select wm-cal-type" style="width:110px;">
                   <option value="story" ${e.type === 'story' ? 'selected' : ''}>剧情</option>
@@ -197,17 +198,15 @@ export class StoryView {
                   <option value="anniversary" ${e.type === 'anniversary' ? 'selected' : ''}>纪念日</option>
                   <option value="custom" ${e.type === 'custom' ? 'selected' : ''}>自定义</option>
                 </select>
-                <input type="text" class="wm-input wm-cal-title" value="${e.title}" placeholder="事件标题..." style="font-weight:600; flex:1;" />
-                <button class="wm-icon-btn wm-del-cal-entry" data-id="${e.id}"><i class="fa-solid fa-trash"></i></button>
+                <input type="text" class="wm-input wm-cal-title" value="${esc(e.title)}" placeholder="事件标题..." style="font-weight:600; flex:1;" />
+                <button class="wm-icon-btn wm-del-cal-entry" data-id="${esc(e.id)}"><i class="fa-solid fa-trash"></i></button>
               </div>
-              <textarea class="wm-textarea wm-cal-desc" rows="2" placeholder="事件内容详情...">${e.description}</textarea>
+              <textarea class="wm-textarea wm-cal-desc" rows="2" placeholder="事件内容详情...">${esc(e.description)}</textarea>
             </div>
           `).join('')}
         </div>
 
-        ${selectedEntries.length > 0 ? `
           <button class="wm-btn wm-btn-primary" id="wm-save-cal-btn" style="align-self:flex-end;"><i class="fa-solid fa-floppy-disk"></i> 保存当日事件</button>
-        ` : ''}
       </div>
     `;
   }
@@ -232,34 +231,34 @@ export class StoryView {
             <div class="wm-card" style="border-left: 4px solid ${isPinned ? 'var(--wm-accent)' : 'var(--wm-card-border)'};">
               <div class="wm-card-header">
                 <div style="display:flex; align-items:center; gap:8px;">
-                  <span style="font-weight:600; font-size:15px;">${p.name}</span>
-                  <select class="wm-select wm-plotline-stage" data-id="${p.id}" style="padding:2px 8px; font-size:12px;">
+                  <input class="wm-input wm-plotline-name" data-id="${esc(p.id)}" value="${esc(p.name)}" aria-label="剧情线名称" />
+                  <select class="wm-select wm-plotline-stage" data-id="${esc(p.id)}" style="padding:2px 8px; font-size:12px;">
                     ${stages.map(s => `<option value="${s}" ${p.stage === s ? 'selected' : ''}>${s}</option>`).join('')}
                   </select>
                   ${isStalled ? '<span style="font-size:10px; background:rgba(239,68,68,0.2); color:#f87171; padding:2px 6px; border-radius:4px;">停滞</span>' : ''}
                 </div>
                 <div class="wm-drawer-actions">
-                  <button class="wm-icon-btn wm-toggle-pin-plotline" data-id="${p.id}" title="${isPinned ? '取消置顶' : '置顶剧情线'}" style="${isPinned ? 'color:var(--wm-accent);' : ''}">
+                  <button class="wm-icon-btn wm-toggle-pin-plotline" data-id="${esc(p.id)}" title="${isPinned ? '取消置顶' : '置顶剧情线'}" style="${isPinned ? 'color:var(--wm-accent);' : ''}">
                     <i class="fa-solid fa-thumbtack"></i>
                   </button>
-                  <button class="wm-icon-btn wm-del-plotline" data-id="${p.id}" title="删除剧情线"><i class="fa-solid fa-trash"></i></button>
+                  <button class="wm-icon-btn wm-del-plotline" data-id="${esc(p.id)}" title="删除剧情线"><i class="fa-solid fa-trash"></i></button>
                 </div>
               </div>
 
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div class="wm-form-group">
                   <span class="wm-label">当前状态 (Current State)</span>
-                  <textarea class="wm-textarea wm-plotline-state" data-id="${p.id}" rows="2">${p.currentState}</textarea>
+                  <textarea class="wm-textarea wm-plotline-state" data-id="${esc(p.id)}" rows="2">${esc(p.currentState)}</textarea>
                 </div>
                 <div class="wm-form-group">
                   <span class="wm-label">下一步动向 (Next Step)</span>
-                  <textarea class="wm-textarea wm-plotline-next" data-id="${p.id}" rows="2">${p.nextStep}</textarea>
+                  <textarea class="wm-textarea wm-plotline-next" data-id="${esc(p.id)}" rows="2">${esc(p.nextStep)}</textarea>
                 </div>
               </div>
 
               <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--wm-text-muted);">
-                <span>关联角色: ${p.relatedCharacterIds?.length ? p.relatedCharacterIds.join(', ') : '无'}</span>
-                <button class="wm-btn wm-btn-primary wm-save-single-plotline" data-id="${p.id}"><i class="fa-solid fa-floppy-disk"></i> 保存此线</button>
+                <label>相关人物（ID，逗号分隔）<input class="wm-input wm-plotline-characters" data-id="${esc(p.id)}" value="${esc(p.relatedCharacterIds?.join(', ') ?? '')}" /></label>
+                <button class="wm-btn wm-btn-primary wm-save-single-plotline" data-id="${esc(p.id)}"><i class="fa-solid fa-floppy-disk"></i> 保存此线</button>
               </div>
             </div>
           `;
@@ -301,31 +300,32 @@ export class StoryView {
             <div class="wm-card" style="border-left:4px solid ${color};">
               <div class="wm-card-header">
                 <div style="display:flex; align-items:center; gap:8px;">
-                  <select class="wm-select wm-plan-type" data-id="${pl.id}" style="color:${color}; font-weight:600; padding:2px 8px; font-size:12px;">
+                  <select class="wm-select wm-plan-type" data-id="${esc(pl.id)}" style="color:${color}; font-weight:600; padding:2px 8px; font-size:12px;">
                     ${types.map(t => `<option value="${t}" ${pl.type === t ? 'selected' : ''}>${t}</option>`).join('')}
                   </select>
-                  <select class="wm-select wm-plan-time" data-id="${pl.id}" style="padding:2px 8px; font-size:12px;">
+                  <select class="wm-select wm-plan-time" data-id="${esc(pl.id)}" style="padding:2px 8px; font-size:12px;">
                     ${times.map(tm => `<option value="${tm}" ${pl.time === tm ? 'selected' : ''}>${tm}</option>`).join('')}
                   </select>
-                  <input type="text" class="wm-input wm-plan-title" data-id="${pl.id}" value="${pl.title}" style="font-weight:600; flex:1; max-width:260px;" />
+                  <input type="text" class="wm-input wm-plan-title" data-id="${esc(pl.id)}" value="${esc(pl.title)}" style="font-weight:600; flex:1; max-width:260px;" />
                 </div>
                 <div class="wm-drawer-actions">
-                  <select class="wm-select wm-plan-status" data-id="${pl.id}" style="padding:2px 8px; font-size:12px;">
+                  <select class="wm-select wm-plan-status" data-id="${esc(pl.id)}" style="padding:2px 8px; font-size:12px;">
                     ${statuses.map(st => `<option value="${st.id}" ${pl.status === st.id ? 'selected' : ''}>${st.label}</option>`).join('')}
                   </select>
-                  <button class="wm-icon-btn wm-toggle-pin-plan" data-id="${pl.id}" title="${isPinned ? '取消置顶' : '置顶'}" style="${isPinned ? 'color:var(--wm-accent);' : ''}">
+                  <button class="wm-icon-btn wm-toggle-pin-plan" data-id="${esc(pl.id)}" title="${isPinned ? '取消置顶' : '置顶'}" style="${isPinned ? 'color:var(--wm-accent);' : ''}">
                     <i class="fa-solid fa-thumbtack"></i>
                   </button>
-                  <button class="wm-icon-btn wm-del-plan" data-id="${pl.id}" title="删除"><i class="fa-solid fa-trash"></i></button>
+                  <button class="wm-icon-btn wm-del-plan" data-id="${esc(pl.id)}" title="删除"><i class="fa-solid fa-trash"></i></button>
                 </div>
               </div>
 
               <div class="wm-form-group">
-                <textarea class="wm-textarea wm-plan-desc" data-id="${pl.id}" rows="2" placeholder="安排详细说明...">${pl.description}</textarea>
+                <label>相关剧情线（ID，逗号分隔）<input class="wm-input wm-plan-plotlines" data-id="${esc(pl.id)}" value="${esc(pl.relatedPlotlineIds?.join(', ') ?? '')}" /></label>
+                <textarea class="wm-textarea wm-plan-desc" data-id="${esc(pl.id)}" rows="2" placeholder="安排详细说明...">${esc(pl.description)}</textarea>
               </div>
 
               <div style="display:flex; justify-content:flex-end;">
-                <button class="wm-btn wm-btn-primary wm-save-single-plan" data-id="${pl.id}"><i class="fa-solid fa-floppy-disk"></i> 保存安排</button>
+                <button class="wm-btn wm-btn-primary wm-save-single-plan" data-id="${esc(pl.id)}"><i class="fa-solid fa-floppy-disk"></i> 保存安排</button>
               </div>
             </div>
           `;
@@ -357,8 +357,8 @@ export class StoryView {
         const res = await backend.getCurrentState(this.chatId, this.branchId);
         this.snapshot = res.snapshot;
         this.render();
-      } catch (err: any) {
-        showToast(err.message || '更新失败', 'error');
+      } catch (err) {
+        showToast((err instanceof Error ? err.message : String(err)) || '更新失败', 'error');
       }
     });
 
@@ -381,10 +381,11 @@ export class StoryView {
 
     this.container.querySelector('#wm-save-ongoing-btn')?.addEventListener('click', async () => {
       const cards = this.container.querySelectorAll('#wm-ongoing-list .wm-card');
-      const items = Array.from(cards).map((card, idx) => ({
-        id: `ongoing_${idx + 1}`,
-        title: (card.querySelector('.wm-ongoing-title') as HTMLInputElement)?.value.trim() || '',
-        description: (card.querySelector('.wm-ongoing-desc') as HTMLTextAreaElement)?.value.trim() || ''
+      const items = Array.from(cards).map(card => ({
+        ...story.now?.ongoing.find(item => item.id === (card as HTMLElement).dataset.id),
+        id: (card as HTMLElement).dataset.id || crypto.randomUUID(),
+        title: (card.querySelector('.wm-ongoing-title') as HTMLInputElement)?.value.trim() || undefined,
+        description: (card.querySelector('.wm-ongoing-desc') as HTMLTextAreaElement)?.value.trim() || undefined
       })).filter(i => i.title);
 
       try {
@@ -399,8 +400,8 @@ export class StoryView {
         const res = await backend.getCurrentState(this.chatId, this.branchId);
         this.snapshot = res.snapshot;
         this.render();
-      } catch (err: any) {
-        showToast(err.message || '保存失败', 'error');
+      } catch (err) {
+        showToast((err instanceof Error ? err.message : String(err)) || '保存失败', 'error');
       }
     });
 
@@ -424,11 +425,12 @@ export class StoryView {
 
     this.container.querySelector('#wm-save-upcoming-btn')?.addEventListener('click', async () => {
       const cards = this.container.querySelectorAll('#wm-upcoming-list .wm-card');
-      const items = Array.from(cards).map((card, idx) => ({
-        id: `upcoming_${idx + 1}`,
-        title: (card.querySelector('.wm-upcoming-title') as HTMLInputElement)?.value.trim() || '',
-        expectedTime: (card.querySelector('.wm-upcoming-time') as HTMLInputElement)?.value.trim() || '',
-        description: (card.querySelector('.wm-upcoming-desc') as HTMLTextAreaElement)?.value.trim() || ''
+      const items = Array.from(cards).map(card => ({
+        ...story.now?.upcoming.find(item => item.id === (card as HTMLElement).dataset.id),
+        id: (card as HTMLElement).dataset.id || crypto.randomUUID(),
+        title: (card.querySelector('.wm-upcoming-title') as HTMLInputElement)?.value.trim() || undefined,
+        expectedTime: (card.querySelector('.wm-upcoming-time') as HTMLInputElement)?.value.trim() || undefined,
+        description: (card.querySelector('.wm-upcoming-desc') as HTMLTextAreaElement)?.value.trim() || undefined
       })).filter(i => i.title);
 
       try {
@@ -443,8 +445,8 @@ export class StoryView {
         const res = await backend.getCurrentState(this.chatId, this.branchId);
         this.snapshot = res.snapshot;
         this.render();
-      } catch (err: any) {
-        showToast(err.message || '保存失败', 'error');
+      } catch (err) {
+        showToast((err instanceof Error ? err.message : String(err)) || '保存失败', 'error');
       }
     });
 
@@ -501,12 +503,14 @@ export class StoryView {
 
     this.container.querySelector('#wm-save-cal-btn')?.addEventListener('click', async () => {
       const cards = this.container.querySelectorAll('#wm-cal-entries-list .wm-card');
-      const newEntriesForDate: CalendarEntry[] = Array.from(cards).map((card, idx) => ({
-        id: `cal_${this.selectedDateKey}_${idx + 1}`,
+      const newEntriesForDate: CalendarEntry[] = Array.from(cards).map(card => ({
+        ...story.calendar.find(item => item.id === (card as HTMLElement).dataset.id),
+        id: (card as HTMLElement).dataset.id || crypto.randomUUID(),
         dateKey: this.selectedDateKey,
-        type: (card.querySelector('.wm-cal-type') as HTMLSelectElement)?.value as any || 'story',
+        type: ((card.querySelector('.wm-cal-type') as HTMLSelectElement)?.value || 'story') as CalendarEntry['type'],
+        confirmed: true,
         title: (card.querySelector('.wm-cal-title') as HTMLInputElement)?.value.trim() || '',
-        description: (card.querySelector('.wm-cal-desc') as HTMLTextAreaElement)?.value.trim() || ''
+        description: (card.querySelector('.wm-cal-desc') as HTMLTextAreaElement)?.value.trim() || undefined
       })).filter(e => e.title);
 
       // Keep entries for other dates
@@ -525,8 +529,8 @@ export class StoryView {
         const res = await backend.getCurrentState(this.chatId, this.branchId);
         this.snapshot = res.snapshot;
         this.render();
-      } catch (err: any) {
-        showToast(err.message || '保存失败', 'error');
+      } catch (err) {
+        showToast((err instanceof Error ? err.message : String(err)) || '保存失败', 'error');
       }
     });
 
@@ -544,7 +548,8 @@ export class StoryView {
         name: name.trim(),
         stage: '起线',
         currentState: '刚刚建立',
-        nextStep: '待发展'
+        nextStep: '待发展',
+        updatedAt: new Date().toISOString()
       };
       const updated = [...(story.plotlines || []), newPlotline];
       try {
@@ -559,8 +564,8 @@ export class StoryView {
         const res = await backend.getCurrentState(this.chatId, this.branchId);
         this.snapshot = res.snapshot;
         this.render();
-      } catch (err: any) {
-        showToast(err.message || '创建失败', 'error');
+      } catch (err) {
+        showToast((err instanceof Error ? err.message : String(err)) || '创建失败', 'error');
       }
     });
 
@@ -568,11 +573,12 @@ export class StoryView {
       btn.addEventListener('click', async () => {
         const id = (btn as HTMLElement).dataset.id;
         if (!id) return;
-        const stage = (this.container.querySelector(`.wm-plotline-stage[data-id="${id}"]`) as HTMLSelectElement)?.value as any;
-        const state = (this.container.querySelector(`.wm-plotline-state[data-id="${id}"]`) as HTMLTextAreaElement)?.value || '';
-        const next = (this.container.querySelector(`.wm-plotline-next[data-id="${id}"]`) as HTMLTextAreaElement)?.value || '';
+        const stage = (this.container.querySelector(`.wm-plotline-stage[data-id="${CSS.escape(id)}"]`) as HTMLSelectElement)?.value as Plotline['stage'];
+        const state = (this.container.querySelector(`.wm-plotline-state[data-id="${CSS.escape(id)}"]`) as HTMLTextAreaElement)?.value || '';
+        const next = (this.container.querySelector(`.wm-plotline-next[data-id="${CSS.escape(id)}"]`) as HTMLTextAreaElement)?.value || '';
 
-        const updated = (story.plotlines || []).map(p => p.id === id ? { ...p, stage, currentState: state, nextStep: next } : p);
+        const name = this.container.querySelector<HTMLInputElement>(`.wm-plotline-name[data-id="${CSS.escape(id)}"]`)!.value.trim();
+        const updated = (story.plotlines || []).map(p => p.id === id ? { ...p, name, stage, currentState: state, nextStep: next || undefined, updatedAt: new Date().toISOString(), relatedCharacterIds: this.container.querySelector<HTMLInputElement>(`.wm-plotline-characters[data-id="${CSS.escape(id)}"]`)!.value.split(/[,，]/).map(value => value.trim()).filter(Boolean) } : p);
         try {
           await backend.manualEditState({
             chatId: this.chatId,
@@ -585,8 +591,8 @@ export class StoryView {
           const res = await backend.getCurrentState(this.chatId, this.branchId);
           this.snapshot = res.snapshot;
           this.render();
-        } catch (err: any) {
-          showToast(err.message || '保存失败', 'error');
+        } catch (err) {
+          showToast((err instanceof Error ? err.message : String(err)) || '保存失败', 'error');
         }
       });
     });
@@ -607,8 +613,8 @@ export class StoryView {
           const res = await backend.getCurrentState(this.chatId, this.branchId);
           this.snapshot = res.snapshot;
           this.render();
-        } catch (err: any) {
-          showToast(err.message || '修改失败', 'error');
+        } catch (err) {
+          showToast((err instanceof Error ? err.message : String(err)) || '修改失败', 'error');
         }
       });
     });
@@ -630,8 +636,8 @@ export class StoryView {
           const res = await backend.getCurrentState(this.chatId, this.branchId);
           this.snapshot = res.snapshot;
           this.render();
-        } catch (err: any) {
-          showToast(err.message || '删除失败', 'error');
+        } catch (err) {
+          showToast((err instanceof Error ? err.message : String(err)) || '删除失败', 'error');
         }
       });
     });
@@ -645,8 +651,9 @@ export class StoryView {
         type: '明线',
         title: title.trim(),
         time: '今天',
-        description: '',
-        status: 'planned'
+        status: 'planned',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       const updated = [...(story.plotPlans || []), newPlan];
       try {
@@ -661,8 +668,8 @@ export class StoryView {
         const res = await backend.getCurrentState(this.chatId, this.branchId);
         this.snapshot = res.snapshot;
         this.render();
-      } catch (err: any) {
-        showToast(err.message || '创建失败', 'error');
+      } catch (err) {
+        showToast((err instanceof Error ? err.message : String(err)) || '创建失败', 'error');
       }
     });
 
@@ -670,13 +677,13 @@ export class StoryView {
       btn.addEventListener('click', async () => {
         const id = (btn as HTMLElement).dataset.id;
         if (!id) return;
-        const type = (this.container.querySelector(`.wm-plan-type[data-id="${id}"]`) as HTMLSelectElement)?.value as any;
-        const time = (this.container.querySelector(`.wm-plan-time[data-id="${id}"]`) as HTMLSelectElement)?.value as any;
-        const title = (this.container.querySelector(`.wm-plan-title[data-id="${id}"]`) as HTMLInputElement)?.value || '';
-        const status = (this.container.querySelector(`.wm-plan-status[data-id="${id}"]`) as HTMLSelectElement)?.value as any;
-        const desc = (this.container.querySelector(`.wm-plan-desc[data-id="${id}"]`) as HTMLTextAreaElement)?.value || '';
+        const type = (this.container.querySelector(`.wm-plan-type[data-id="${CSS.escape(id)}"]`) as HTMLSelectElement)?.value as PlotPlan['type'];
+        const time = (this.container.querySelector(`.wm-plan-time[data-id="${CSS.escape(id)}"]`) as HTMLSelectElement)?.value as PlotPlan['time'];
+        const title = (this.container.querySelector(`.wm-plan-title[data-id="${CSS.escape(id)}"]`) as HTMLInputElement)?.value || '';
+        const status = (this.container.querySelector(`.wm-plan-status[data-id="${CSS.escape(id)}"]`) as HTMLSelectElement)?.value as PlotPlan['status'];
+        const desc = (this.container.querySelector(`.wm-plan-desc[data-id="${CSS.escape(id)}"]`) as HTMLTextAreaElement)?.value || '';
 
-        const updated = (story.plotPlans || []).map(p => p.id === id ? { ...p, type, time, title, status, description: desc } : p);
+        const updated = (story.plotPlans || []).map(p => p.id === id ? { ...p, type, time, title, status, description: desc || undefined, updatedAt: new Date().toISOString(), relatedPlotlineIds: this.container.querySelector<HTMLInputElement>(`.wm-plan-plotlines[data-id="${CSS.escape(id)}"]`)!.value.split(/[,，]/).map(value => value.trim()).filter(Boolean) } : p);
         try {
           await backend.manualEditState({
             chatId: this.chatId,
@@ -689,8 +696,8 @@ export class StoryView {
           const res = await backend.getCurrentState(this.chatId, this.branchId);
           this.snapshot = res.snapshot;
           this.render();
-        } catch (err: any) {
-          showToast(err.message || '保存失败', 'error');
+        } catch (err) {
+          showToast((err instanceof Error ? err.message : String(err)) || '保存失败', 'error');
         }
       });
     });
@@ -711,8 +718,8 @@ export class StoryView {
           const res = await backend.getCurrentState(this.chatId, this.branchId);
           this.snapshot = res.snapshot;
           this.render();
-        } catch (err: any) {
-          showToast(err.message || '修改失败', 'error');
+        } catch (err) {
+          showToast((err instanceof Error ? err.message : String(err)) || '修改失败', 'error');
         }
       });
     });
@@ -734,8 +741,8 @@ export class StoryView {
           const res = await backend.getCurrentState(this.chatId, this.branchId);
           this.snapshot = res.snapshot;
           this.render();
-        } catch (err: any) {
-          showToast(err.message || '删除失败', 'error');
+        } catch (err) {
+          showToast((err instanceof Error ? err.message : String(err)) || '删除失败', 'error');
         }
       });
     });

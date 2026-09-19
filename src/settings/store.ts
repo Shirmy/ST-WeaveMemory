@@ -1,6 +1,8 @@
 import type { ExternalStateMapping } from '../types';
 
 export type Settings = {
+  debug: boolean;
+  language: 'zh-CN';
   enabled: boolean;
   backendRequired: boolean;
   recentContextMode: 'raw' | 'summary';
@@ -11,10 +13,15 @@ export type Settings = {
 };
 
 const KEY = 'weavememory';
-const defaults: Settings = { enabled: false, backendRequired: true, recentContextMode: 'raw', recentSummaryRegex: '', recentFloorCount: 4, externalStateMappings: {}, longMemoryIntervalFloors: 30 };
+const defaults: Settings = { debug: false, language: 'zh-CN', enabled: false, backendRequired: true, recentContextMode: 'raw', recentSummaryRegex: '', recentFloorCount: 4, externalStateMappings: {}, longMemoryIntervalFloors: 30 };
+
+type SettingsContext = { extensionSettings?: Record<string, Partial<Settings>>; extension_settings?: Record<string, Partial<Settings>>; saveSettingsDebounced?: () => void };
+function settingsContext(): SettingsContext | undefined {
+  return (globalThis as typeof globalThis & { SillyTavern?: { getContext?: () => SettingsContext } }).SillyTavern?.getContext?.();
+}
 
 export function getSettings(): Settings {
-  const context = (globalThis as any).SillyTavern?.getContext?.();
+  const context = settingsContext();
   const root = context?.extensionSettings ?? context?.extension_settings;
   if (!root) return { ...defaults };
   root[KEY] ??= { ...defaults };
@@ -28,10 +35,11 @@ export function getSettings(): Settings {
 }
 
 export function updateSettings(patch: Partial<Settings>): Settings {
-  const context = (globalThis as any).SillyTavern?.getContext?.();
+  const context = settingsContext();
   const root = context?.extensionSettings ?? context?.extension_settings;
   if (!root) return { ...defaults, ...patch };
   root[KEY] = { ...defaults, ...(root[KEY] ?? {}), ...patch };
   context?.saveSettingsDebounced?.();
-  return { ...root[KEY] };
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('weavememory-settings-changed'));
+  return { ...defaults, ...root[KEY] };
 }
