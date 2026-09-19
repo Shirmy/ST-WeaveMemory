@@ -7,7 +7,8 @@
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:external-state": "tsc src/host/external-state.ts src/host/external-state-acceptance.ts --target ES2022 --module ESNext --moduleResolution bundler --outDir .test-dist --skipLibCheck && node .test-dist/external-state-acceptance.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.23.0",
