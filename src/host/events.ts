@@ -1,3 +1,4 @@
+import { mainModal } from '../ui/main-modal';
 import { backend } from '../api/backend-client';
 import { currentChatId, currentChatMetadata, getContext } from './context';
 import { getSettings } from '../settings/store';
@@ -69,6 +70,7 @@ function reconcileCurrentChat(): Promise<void> {
         floors: currentAiFloors()
       });
       setCurrentBranch(chatId, result.branch);
+      void mainModal.setChatContext(chatId, result.branch?.branchId);
     } catch (error) {
       console.warn('[WeaveMemory] chat reconcile failed:', error);
     }
