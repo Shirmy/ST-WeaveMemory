@@ -2,7 +2,8 @@ import type { ExternalStateMapping, ExternalStateSnapshot } from '../types';
 
 export function characterCardId(context: unknown): string | null {
   const value = context as Record<string, unknown>;
-  if (value.groupId !== undefined || value.group_id !== undefined || value.selected_group !== undefined) return null;
+  const groupFields = [value.groupId, value.group_id, value.selected_group];
+  if (groupFields.some(groupId => typeof groupId === 'string' && groupId.trim().length > 0)) return null;
   const characterId = value.characterId ?? value.character_id;
   const characters = Array.isArray(value.characters) ? value.characters : [];
   const character = typeof characterId === 'number' && Number.isInteger(characterId) ? characters[characterId] as Record<string, unknown> | undefined : undefined;
