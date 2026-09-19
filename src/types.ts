@@ -16,7 +16,11 @@ export type GenerationPrepareRequest = {
   recentContextMode?: 'raw' | 'summary';
   recentSummaryRegex?: string;
   recentFloorCount?: number;
+  externalState?: ExternalStateSnapshot;
 };
+
+export type ExternalStateMapping = { id: string; source: 'mvu'; externalPath: string; weaveTarget: { domain: 'profile' | 'trace' | 'story'; path: string }; mode: 'equivalent' | 'related'; enabled: boolean };
+export type ExternalStateSnapshot = { source: 'mvu'; detected: boolean; statData: unknown | null; messageIndex: number | null; swipeId: number | null; cardId: string | null; mappings: ExternalStateMapping[]; failure?: string };
 
 export type GenerationPrepareResponse = {
   ready: boolean;
@@ -28,6 +32,17 @@ export type GenerationPrepareResponse = {
     memoryTokens: number;
     stateTokens: number;
     stateNodeId?: string;
+    externalSource?: string | null;
+    mvuDetected?: boolean;
+    sourceMessageIndex?: number | null;
+    sourceSwipeId?: number | null;
+    mappingCount?: number;
+    activeEquivalentMappings?: string[];
+    activeRelatedMappings?: string[];
+    suppressedWeaveFields?: string[];
+    mappingFailures?: string[];
+    tokensBeforeMapping?: number;
+    tokensAfterMapping?: number;
   };
 };
 

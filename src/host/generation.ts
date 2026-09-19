@@ -1,5 +1,6 @@
 import { backend } from '../api/backend-client';
 import { currentChatId, getContext, latestUser } from './context';
+import { characterCardId, previousAssistantIndex, readMvuExternalState } from './external-state';
 import { applyMemoryPrompts, clearMemoryPrompts } from '../injection/prompts';
 import { getSettings } from '../settings/store';
 
@@ -14,6 +15,9 @@ export async function generationInterceptor(_coreChat: unknown, contextSize: num
   const chatId = currentChatId(context);
   const user = latestUser(context);
   if (!chatId || user.index === null) return;
+  const cardId = characterCardId(context);
+  const mappings = cardId ? settings.externalStateMappings[cardId] ?? [] : [];
+  const externalState = readMvuExternalState(context, previousAssistantIndex(context, user.index), mappings);
 
   try {
     const result = await backend.prepareGeneration({
@@ -24,7 +28,8 @@ export async function generationInterceptor(_coreChat: unknown, contextSize: num
       latestUserText: user.text,
       recentContextMode: settings.recentContextMode,
       recentSummaryRegex: settings.recentSummaryRegex,
-      recentFloorCount: settings.recentFloorCount
+      recentFloorCount: settings.recentFloorCount,
+      externalState
     });
 
     if (!result.ready) {
