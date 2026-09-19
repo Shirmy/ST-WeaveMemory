@@ -7,10 +7,11 @@ export type Settings = {
   recentSummaryRegex: string;
   recentFloorCount: number;
   externalStateMappings: Record<string, ExternalStateMapping[]>;
+  longMemoryIntervalFloors: number;
 };
 
 const KEY = 'weavememory';
-const defaults: Settings = { enabled: false, backendRequired: true, recentContextMode: 'raw', recentSummaryRegex: '', recentFloorCount: 4, externalStateMappings: {} };
+const defaults: Settings = { enabled: false, backendRequired: true, recentContextMode: 'raw', recentSummaryRegex: '', recentFloorCount: 4, externalStateMappings: {}, longMemoryIntervalFloors: 30 };
 
 export function getSettings(): Settings {
   const context = (globalThis as any).SillyTavern?.getContext?.();
@@ -22,6 +23,7 @@ export function getSettings(): Settings {
   settings.recentFloorCount = Number.isInteger(settings.recentFloorCount) ? Math.min(20, Math.max(1, settings.recentFloorCount)) : defaults.recentFloorCount;
   settings.recentSummaryRegex = typeof settings.recentSummaryRegex === 'string' ? settings.recentSummaryRegex : '';
   settings.externalStateMappings = settings.externalStateMappings && typeof settings.externalStateMappings === 'object' ? settings.externalStateMappings : {};
+  settings.longMemoryIntervalFloors = Number.isSafeInteger(settings.longMemoryIntervalFloors) ? Math.min(500, Math.max(1, settings.longMemoryIntervalFloors)) : defaults.longMemoryIntervalFloors;
   return settings;
 }
 

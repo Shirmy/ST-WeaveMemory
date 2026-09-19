@@ -1,4 +1,4 @@
-import type { BranchResponse, ChatReconcileRequest, ChatReconcileResponse, CreateBranchRequest, FloorFinalizeRequest, GenerationPrepareRequest, GenerationPrepareResponse, HealthResponse, HostChatBindingRequest } from '../types';
+import type { AiSettingsResponse, BranchResponse, ChatReconcileRequest, ChatReconcileResponse, CreateBranchRequest, FloorFinalizeRequest, GenerationPrepareRequest, GenerationPrepareResponse, HealthResponse, HostChatBindingRequest } from '../types';
 
 const BASE = '/api/plugins/weavememory';
 
@@ -14,6 +14,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const backend = {
   health: () => request<HealthResponse>('/health'),
+  getAiSettings: () => request<AiSettingsResponse>('/ai/settings'),
+  saveLongMemorySettings: (summaryIntervalFloors: number) => request<AiSettingsResponse>('/ai/settings/save', { method: 'POST', body: JSON.stringify({ longMemory: { summaryIntervalFloors } }) }),
   prepareGeneration: (payload: GenerationPrepareRequest) => request<GenerationPrepareResponse>('/generation/prepare', {
     method: 'POST', body: JSON.stringify(payload)
   }),

@@ -18,6 +18,7 @@ export type GenerationPrepareRequest = {
   recentFloorCount?: number;
   externalState?: ExternalStateSnapshot;
 };
+export type AiSettingsResponse = { longMemory: { summaryIntervalFloors: number } };
 
 export type ExternalStateMapping = { id: string; source: 'mvu'; externalPath: string; weaveTarget: { domain: 'profile' | 'trace' | 'story'; path?: string; characterId?: string; field?: string; itemId?: string; semanticKey?: string }; mode: 'equivalent' | 'related'; enabled: boolean };
 export type ExternalStateSnapshot = { source: 'mvu'; detected: boolean; statData: unknown | null; messageIndex: number | null; swipeId: number | null; cardId: string | null; mappings: ExternalStateMapping[]; failure?: string };
