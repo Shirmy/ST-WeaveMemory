@@ -21,7 +21,10 @@ export async function generationInterceptor(_coreChat: unknown, contextSize: num
       generationType: String(rawType ?? 'normal'),
       contextSize: Number(contextSize) || 0,
       latestUserIndex: user.index,
-      latestUserText: user.text
+      latestUserText: user.text,
+      recentContextMode: settings.recentContextMode,
+      recentSummaryRegex: settings.recentSummaryRegex,
+      recentFloorCount: settings.recentFloorCount
     });
 
     if (!result.ready) {
